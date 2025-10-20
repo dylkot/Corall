@@ -36,13 +36,15 @@ class PaperRecommender:
         self.library_papers = None
         self.is_initialized = False
 
-    def initialize(self, force_rebuild: bool = False, max_papers: Optional[int] = None):
+    def initialize(self, force_rebuild: bool = False, max_papers: Optional[int] = None,
+                   max_workers: int = 5):
         """
         Initialize the recommender by building profiles and networks.
 
         Args:
             force_rebuild: Force rebuilding caches
             max_papers: Maximum number of library papers to process (for testing)
+            max_workers: Number of parallel workers for citation network (default: 5)
         """
         print("="*60)
         print("Initializing Paper Recommendation Engine")
@@ -61,13 +63,14 @@ class PaperRecommender:
         print("\n2. Building content similarity profile...")
         self.similarity.build_library_profile(self.library_papers, force_rebuild=force_rebuild)
 
-        # Build citation network
+        # Build citation network (uses parallel processing)
         print("\n3. Building citation network...")
         self.citation_scorer.build_library_network(
             self.openalex,
             self.library_papers,
             force_rebuild=force_rebuild,
-            max_papers=max_papers
+            max_papers=max_papers,
+            max_workers=max_workers
         )
 
         self.is_initialized = True
@@ -110,7 +113,8 @@ class PaperRecommender:
                            similarity_weight: float = 0.7,
                            deep_citation_check: bool = False,
                            use_journal_filter: bool = False,
-                           custom_journals: Optional[List[str]] = None) -> List[Dict]:
+                           custom_journals: Optional[List[str]] = None,
+                           max_workers: int = 5) -> List[Dict]:
         """
         Get paper recommendations.
 
@@ -121,9 +125,10 @@ class PaperRecommender:
             min_similarity_score: Minimum similarity score threshold
             citation_weight: Weight for citation score (0-1)
             similarity_weight: Weight for similarity score (0-1)
-            deep_citation_check: Use deeper citation network analysis (slower)
+            deep_citation_check: Use deeper citation network analysis
             use_journal_filter: Filter by journals from your library
             custom_journals: Custom list of journal names to filter by (overrides auto-detection)
+            max_workers: Number of parallel workers for deep citation check (default: 5)
 
         Returns:
             List of recommended papers sorted by combined score
@@ -199,7 +204,8 @@ class PaperRecommender:
             candidate_papers = self.citation_scorer.compute_advanced_citation_scores(
                 self.openalex,
                 candidate_papers,
-                check_depth=1
+                check_depth=1,
+                max_workers=max_workers
             )
         else:
             candidate_papers = self.citation_scorer.compute_citation_scores(candidate_papers)

@@ -23,7 +23,8 @@ def cli():
 @click.option('--force', is_flag=True, help='Force rebuild of all caches')
 @click.option('--max-papers', type=int, default=None, help='Limit number of library papers (for testing)')
 @click.option('--collection-id', type=str, default=None, help='Use specific Zotero collection (ID or name)')
-def init(force, max_papers, collection_id):
+@click.option('--workers', type=int, default=5, help='Number of parallel workers (default: 5)')
+def init(force, max_papers, collection_id, workers):
     """Initialize the recommendation engine by building profiles and networks."""
     load_dotenv()
 
@@ -33,7 +34,8 @@ def init(force, max_papers, collection_id):
             os.environ['ZOTERO_COLLECTION_ID'] = collection_id
 
         recommender = PaperRecommender()
-        recommender.initialize(force_rebuild=force, max_papers=max_papers)
+        recommender.initialize(force_rebuild=force, max_papers=max_papers,
+                             max_workers=workers)
 
         # Show stats
         stats = recommender.get_library_stats()
@@ -70,8 +72,9 @@ def init(force, max_papers, collection_id):
 @click.option('--custom-journals', type=str, default=None, help='Comma-separated list of custom journal names')
 @click.option('--journal-file', type=click.Path(exists=True), default=None, help='Path to file containing journal names (one per line)')
 @click.option('--collection-id', type=str, default=None, help='Use specific Zotero collection (ID or name)')
+@click.option('--workers', type=int, default=5, help='Number of parallel workers for deep citation check (default: 5)')
 def recommend(days, top, citation_weight, similarity_weight, min_citation,
-              min_similarity, deep, explain, export, filter_journals, no_filter_journals, custom_journals, journal_file, collection_id):
+              min_similarity, deep, explain, export, filter_journals, no_filter_journals, custom_journals, journal_file, collection_id, workers):
     """Get paper recommendations based on your library."""
     load_dotenv()
 
@@ -124,7 +127,8 @@ def recommend(days, top, citation_weight, similarity_weight, min_citation,
             min_similarity_score=min_similarity,
             deep_citation_check=deep,
             use_journal_filter=use_journal_filter,
-            custom_journals=custom_journal_list
+            custom_journals=custom_journal_list,
+            max_workers=workers
         )
 
         if not recommendations:
