@@ -29,6 +29,10 @@ class OpenAlexClient:
         self.journal_cache_file = os.path.join(cache_dir, "journal_id_cache.pkl")
         self.journal_cache = self._load_journal_cache()
 
+        # Rate limiting (10 req/sec is safe for polite pool)
+        self.last_request_time = 0
+        self.min_request_interval = 0.1  # seconds between requests
+
         # Add email to headers for polite pool
         if self.email:
             self.session.headers.update({"User-Agent": f"mailto:{self.email}"})
@@ -410,21 +414,46 @@ class OpenAlexClient:
 
         return ' '.join(words[pos] for pos in sorted(words.keys()))
 
-    def _make_request(self, url: str, params: Optional[Dict] = None) -> Optional[requests.Response]:
+    def _make_request(self, url: str, params: Optional[Dict] = None, max_retries: int = 3) -> Optional[requests.Response]:
         """
-        Make HTTP request with error handling.
+        Make HTTP request with rate limiting, retry logic, and error handling.
 
         Args:
             url: Request URL
             params: Query parameters
+            max_retries: Maximum number of retries for rate limit errors
 
         Returns:
             Response object or None on error
         """
-        try:
-            response = self.session.get(url, params=params, timeout=30)
-            response.raise_for_status()
-            return response
-        except requests.exceptions.RequestException as e:
-            print(f"Error making request to {url}: {e}")
-            return None
+        for attempt in range(max_retries):
+            # Rate limiting: ensure minimum time between requests
+            elapsed = time.time() - self.last_request_time
+            if elapsed < self.min_request_interval:
+                time.sleep(self.min_request_interval - elapsed)
+
+            self.last_request_time = time.time()
+
+            try:
+                response = self.session.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                return response
+            except requests.exceptions.HTTPError as e:
+                # Handle 429 (Too Many Requests) with exponential backoff
+                if e.response.status_code == 429:
+                    if attempt < max_retries - 1:
+                        wait_time = (2 ** attempt)  # 1s, 2s, 4s
+                        print(f"Rate limit hit (429). Retrying in {wait_time}s... (attempt {attempt + 1}/{max_retries})")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        print(f"Rate limit hit (429). Max retries exceeded.")
+                        return None
+                else:
+                    print(f"HTTP error making request to {url}: {e}")
+                    return None
+            except requests.exceptions.RequestException as e:
+                print(f"Error making request to {url}: {e}")
+                return None
+
+        return None
