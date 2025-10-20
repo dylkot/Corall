@@ -623,9 +623,15 @@
 
             // Most similar paper from library
             const mostSimilar = paper.most_similar_paper;
-            const mostSimilarHtml = mostSimilar
-                ? `<br><strong>Most similar to:</strong> "${mostSimilar.title}" (similarity: ${(mostSimilar.similarity || 0).toFixed(3)})`
-                : '';
+            let mostSimilarHtml = '';
+            if (mostSimilar) {
+                let similarTitle = mostSimilar.title || 'Unknown';
+                // Truncate to 40 characters
+                if (similarTitle.length > 40) {
+                    similarTitle = similarTitle.substring(0, 40) + '...';
+                }
+                mostSimilarHtml = `<br><strong>Most similar to:</strong> "${similarTitle}" (similarity: ${(mostSimilar.similarity || 0).toFixed(3)})`;
+            }
 
             const abstract = paper.abstract || '';
             const showExpand = abstract.length > 300;

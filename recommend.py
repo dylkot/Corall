@@ -158,6 +158,9 @@ def recommend(days, top, citation_weight, similarity_weight, min_citation,
             most_similar = paper.get('most_similar_paper')
             if most_similar:
                 similar_title = most_similar.get('title', 'Unknown')
+                # Truncate to 40 characters
+                if len(similar_title) > 40:
+                    similar_title = similar_title[:40] + '...'
                 similar_sim = most_similar.get('similarity', 0)
                 click.echo(f"   Most similar to: \"{similar_title}\" (similarity: {similar_sim:.3f})")
 

@@ -421,7 +421,11 @@
                         <strong>Journal:</strong> ${journal}<br>
                         <strong>Citations:</strong> ${debug.cited_by_count}
                         ${openAccess ? '<span class="badge badge-success">Open Access</span>' : ''}
-                        ${paper.most_similar_paper ? `<br><strong>Most similar to:</strong> "${paper.most_similar_paper.title}" (similarity: ${(paper.most_similar_paper.similarity || 0).toFixed(3)})` : ''}
+                        ${paper.most_similar_paper ? (() => {
+                            let title = paper.most_similar_paper.title || 'Unknown';
+                            if (title.length > 40) title = title.substring(0, 40) + '...';
+                            return `<br><strong>Most similar to:</strong> "${title}" (similarity: ${(paper.most_similar_paper.similarity || 0).toFixed(3)})`;
+                        })() : ''}
                     </div>
 
                     <div class="score-grid">

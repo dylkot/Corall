@@ -184,7 +184,7 @@ Top 10 Recommendations
 1. Deep Learning for Protein Structure Prediction
    Score: 0.856 (Citation: 0.700, Similarity: 0.924)
    Authors: John Smith, Jane Doe ... Robert Johnson, Sarah Williams
-   Most similar to: "AlphaFold: Accurate protein structure prediction" (similarity: 0.924)
+   Most similar to: "AlphaFold: Accurate protein structure..." (similarity: 0.924)
    Published: 2024-10-15
    DOI: https://doi.org/10.1234/example
    PDF: https://arxiv.org/pdf/... (Open Access)
