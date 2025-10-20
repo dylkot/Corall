@@ -226,13 +226,6 @@ def stats():
         click.echo(f"\nCitation network size: {stats['citation_network']['total_works']} works")
         click.echo(f"Library papers mapped to OpenAlex: {stats['citation_network']['library_papers_mapped']}")
         click.echo(f"\nPapers with embeddings: {stats['embeddings']['papers_with_embeddings']}")
-
-        # Show key concepts
-        concepts = recommender.similarity.extract_key_concepts()
-        click.echo(f"\nTop research concepts in your library:")
-        for i, concept in enumerate(concepts[:10], 1):
-            click.echo(f"  {i}. {concept}")
-
         click.echo("="*60)
 
     except Exception as e:

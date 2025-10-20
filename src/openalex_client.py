@@ -161,41 +161,6 @@ class OpenAlexClient:
 
         return []
 
-    def get_citation_network(self, openalex_id: str, depth: int = 1,
-                            max_citations: int = 20, max_references: int = 20) -> Set[str]:
-        """
-        Build citation network around a work.
-
-        Args:
-            openalex_id: OpenAlex work ID
-            depth: How many hops to explore (1 = direct citations/references)
-            max_citations: Maximum number of citations to fetch per paper (default: 20)
-            max_references: Maximum number of references to fetch per paper (default: 20)
-
-        Returns:
-            Set of OpenAlex IDs in the network
-        """
-        network = {openalex_id}
-        to_explore = {openalex_id}
-
-        for _ in range(depth):
-            new_works = set()
-            for work_id in to_explore:
-                # Get citations
-                citations = self.get_citations(work_id, limit=max_citations)
-                new_works.update(c['openalex_id'] for c in citations if c.get('openalex_id'))
-
-                # Get references
-                references = self.get_references(work_id, limit=max_references)
-                new_works.update(r['openalex_id'] for r in references if r.get('openalex_id'))
-
-                time.sleep(0.1)  # Be polite to API
-
-            network.update(new_works)
-            to_explore = new_works - network
-
-        return network
-
     def find_source_by_name(self, source_name: str) -> Optional[Dict]:
         """
         Find a source (journal/venue) in OpenAlex by name.
@@ -292,16 +257,15 @@ class OpenAlexClient:
 
         return source_ids
 
-    def search_recent_papers(self, from_date: str, concepts: Optional[List[str]] = None,
+    def search_recent_papers(self, from_date: str,
                             journal_ids: Optional[List[str]] = None,
                             limit: int = 100) -> List[Dict]:
         """
-        Search for recent papers, optionally filtered by concepts and journals.
+        Search for recent papers, optionally filtered by journals.
         Fetches ALL available papers using pagination (not limited to 200).
 
         Args:
             from_date: Date in YYYY-MM-DD format
-            concepts: List of concept names to filter by
             journal_ids: List of OpenAlex source IDs to filter by
             limit: Maximum number of papers to retrieve (None = all available)
 
@@ -311,10 +275,6 @@ class OpenAlexClient:
         url = f"{self.BASE_URL}/works"
 
         filters = [f"from_publication_date:{from_date}"]
-
-        if concepts:
-            concept_filter = "|".join(concepts)
-            filters.append(f"concepts.display_name:{concept_filter}")
 
         if journal_ids:
             # Use OR logic for journals

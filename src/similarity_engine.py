@@ -165,12 +165,7 @@ class SimilarityEngine:
             max_similarity = similarities[0][0]
             most_similar_idx = similarities[0][1]
 
-            # Also compute average of top-k similarities
-            top_k = min(5, len(similarities))
-            avg_top_similarity = np.mean([sim for sim, _ in similarities[:top_k]])
-
             paper['similarity_score'] = float(max_similarity)
-            paper['avg_top_similarity'] = float(avg_top_similarity)
 
             # Store most similar library paper
             most_similar_paper = self.library_papers[most_similar_idx]
@@ -225,41 +220,3 @@ class SimilarityEngine:
             top_papers.append(lib_paper)
 
         return top_papers
-
-    def extract_key_concepts(self) -> List[str]:
-        """
-        Extract key concepts/topics from library using OpenAlex concepts.
-
-        Returns:
-            List of key concept names
-        """
-        if not self.library_papers:
-            return []
-
-        # Aggregate concepts from all papers
-        concept_counts = {}
-
-        for paper in self.library_papers:
-            concepts = paper.get('concepts', [])
-            for concept in concepts:
-                name = concept.get('name')
-                score = concept.get('score', 0)
-
-                if name:
-                    if name not in concept_counts:
-                        concept_counts[name] = {'count': 0, 'total_score': 0}
-
-                    concept_counts[name]['count'] += 1
-                    concept_counts[name]['total_score'] += score
-
-        # Rank by frequency and average score
-        ranked_concepts = []
-        for name, data in concept_counts.items():
-            avg_score = data['total_score'] / data['count']
-            rank_score = data['count'] * avg_score
-            ranked_concepts.append((name, rank_score))
-
-        ranked_concepts.sort(key=lambda x: x[1], reverse=True)
-
-        # Return top concepts
-        return [name for name, _ in ranked_concepts[:20]]

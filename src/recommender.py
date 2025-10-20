@@ -139,11 +139,6 @@ class PaperRecommender:
         from_date = (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d")
         print(f"\nSearching for papers published since {from_date}...")
 
-        # Extract key concepts from library
-        print("Extracting key concepts from your library...")
-        concepts = self.similarity.extract_key_concepts()
-        print(f"Key concepts: {', '.join(concepts[:5])}...")
-
         # Prepare journal filter if requested
         journal_ids = None
         if use_journal_filter or custom_journals:
@@ -167,12 +162,10 @@ class PaperRecommender:
         # Search for recent papers
         print(f"\nSearching OpenAlex for recent papers...")
         print(f"  Date filter: from {from_date} onwards")
-        print(f"  Concept filter: {len(concepts[:10])} concepts (empty = no concept filter)")
         print(f"  Journal filter: {len(journal_ids) if journal_ids else 0} journals")
 
         candidate_papers = self.openalex.search_recent_papers(
             from_date=from_date,
-            concepts=concepts[:10],  # Use top 10 concepts
             journal_ids=journal_ids,  # Apply journal filter if available
             limit=None  # Fetch ALL papers, no limit
         )
