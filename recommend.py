@@ -64,7 +64,6 @@ def init(force, max_papers, collection_id, workers):
 @click.option('--similarity-weight', type=float, default=0.7, help='Weight for similarity score (0-1)')
 @click.option('--min-citation', type=float, default=0.0, help='Minimum citation score threshold')
 @click.option('--min-similarity', type=float, default=0.0, help='Minimum similarity score threshold')
-@click.option('--deep', is_flag=True, help='Use deeper citation network analysis (slower)')
 @click.option('--explain', is_flag=True, help='Show detailed explanations for recommendations')
 @click.option('--export', type=click.Path(), default=None, help='Export recommendations to JSON file')
 @click.option('--filter-journals', is_flag=True, default=True, help='Filter by top biology/medicine journals (default: True)')
@@ -72,9 +71,8 @@ def init(force, max_papers, collection_id, workers):
 @click.option('--custom-journals', type=str, default=None, help='Comma-separated list of custom journal names')
 @click.option('--journal-file', type=click.Path(exists=True), default=None, help='Path to file containing journal names (one per line)')
 @click.option('--collection-id', type=str, default=None, help='Use specific Zotero collection (ID or name)')
-@click.option('--workers', type=int, default=5, help='Number of parallel workers for deep citation check (default: 5)')
 def recommend(days, top, citation_weight, similarity_weight, min_citation,
-              min_similarity, deep, explain, export, filter_journals, no_filter_journals, custom_journals, journal_file, collection_id, workers):
+              min_similarity, explain, export, filter_journals, no_filter_journals, custom_journals, journal_file, collection_id):
     """Get paper recommendations based on your library."""
     load_dotenv()
 
@@ -125,10 +123,8 @@ def recommend(days, top, citation_weight, similarity_weight, min_citation,
             similarity_weight=similarity_weight,
             min_citation_score=min_citation,
             min_similarity_score=min_similarity,
-            deep_citation_check=deep,
             use_journal_filter=use_journal_filter,
-            custom_journals=custom_journal_list,
-            max_workers=workers
+            custom_journals=custom_journal_list
         )
 
         if not recommendations:

@@ -4,6 +4,7 @@ OpenAlex API client for citation network and paper discovery.
 import os
 import time
 import pickle
+import threading
 from typing import List, Dict, Optional, Set
 import requests
 from dotenv import load_dotenv
@@ -32,6 +33,7 @@ class OpenAlexClient:
         # Rate limiting (10 req/sec is safe for polite pool)
         self.last_request_time = 0
         self.min_request_interval = 0.1  # seconds between requests
+        self.rate_limit_lock = threading.Lock()  # Thread-safe rate limiting
 
         # Add email to headers for polite pool
         if self.email:
@@ -427,12 +429,12 @@ class OpenAlexClient:
             Response object or None on error
         """
         for attempt in range(max_retries):
-            # Rate limiting: ensure minimum time between requests
-            elapsed = time.time() - self.last_request_time
-            if elapsed < self.min_request_interval:
-                time.sleep(self.min_request_interval - elapsed)
-
-            self.last_request_time = time.time()
+            # Rate limiting: ensure minimum time between requests (thread-safe)
+            with self.rate_limit_lock:
+                elapsed = time.time() - self.last_request_time
+                if elapsed < self.min_request_interval:
+                    time.sleep(self.min_request_interval - elapsed)
+                self.last_request_time = time.time()
 
             try:
                 response = self.session.get(url, params=params, timeout=30)

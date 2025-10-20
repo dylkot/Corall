@@ -20,17 +20,22 @@ class CitationScorer:
             cache_dir: Directory for caching citation networks
         """
         self.cache_dir = cache_dir
-        self.library_network = set()
+        # Maps citing_paper_id -> set of library_paper_ids it cites
+        self.citation_network = defaultdict(set)
         self.openalex_id_map = {}
 
         os.makedirs(cache_dir, exist_ok=True)
 
     def build_library_network(self, openalex_client, library_papers: List[Dict],
                               force_rebuild: bool = False, max_papers: Optional[int] = None,
-                              max_citations: int = 500, max_references: int = 500,
+                              max_citations: int = 500,
                               max_workers: int = 5):
         """
         Build citation network from library papers using parallel processing.
+
+        Fetches papers that cite library papers and tracks which library papers
+        each citing paper references. This allows scoring based on how many
+        library papers a candidate cites (1=0.5, 2=0.75, 3+=1.0).
 
         Uses multithreading to process multiple papers concurrently for 3-5x speedup.
         The rate limiter ensures we still respect OpenAlex API limits (10 req/sec).
@@ -41,7 +46,6 @@ class CitationScorer:
             force_rebuild: Force rebuilding even if cache exists
             max_papers: Maximum number of library papers to process (for testing)
             max_citations: Maximum number of citations to fetch per paper (default: 500)
-            max_references: Maximum number of references to fetch per paper (default: 500)
             max_workers: Number of parallel worker threads (default: 5)
         """
         cache_file = os.path.join(self.cache_dir, "citation_network.pkl")
@@ -55,7 +59,6 @@ class CitationScorer:
                 # Check if cache has parameter metadata
                 cached_params = cache_data.get('build_params', {})
                 cached_max_citations = cached_params.get('max_citations', 0)
-                cached_max_references = cached_params.get('max_references', 0)
                 cached_num_papers = cached_params.get('num_papers', 0)
 
                 # Determine if we need to rebuild
@@ -66,10 +69,6 @@ class CitationScorer:
                 if max_citations > cached_max_citations:
                     needs_rebuild = True
                     rebuild_reasons.append(f"max_citations increased ({cached_max_citations} -> {max_citations})")
-
-                if max_references > cached_max_references:
-                    needs_rebuild = True
-                    rebuild_reasons.append(f"max_references increased ({cached_max_references} -> {max_references})")
 
                 # Check if library has grown significantly (more than 10% or 5 papers)
                 current_num_papers = len(library_papers[:max_papers] if max_papers else library_papers)
@@ -83,10 +82,10 @@ class CitationScorer:
                         print(f"  - {reason}")
                     print("Rebuilding citation network...")
                 else:
-                    self.library_network = cache_data['network']
+                    self.citation_network = cache_data.get('citation_network', defaultdict(set))
                     self.openalex_id_map = cache_data['id_map']
-                    print(f"Loaded network with {len(self.library_network)} works.")
-                    print(f"  Built with: max_citations={cached_max_citations}, max_references={cached_max_references}, {cached_num_papers} papers")
+                    print(f"Loaded citation network with {len(self.citation_network)} citing papers.")
+                    print(f"  Built with: max_citations={cached_max_citations}, {cached_num_papers} papers")
                     return
 
         # Build new network with parallel processing
@@ -99,7 +98,7 @@ class CitationScorer:
         id_map_lock = threading.Lock()
 
         def process_paper(paper_tuple):
-            """Process a single paper (find in OpenAlex and get citations/references)."""
+            """Process a single library paper (find in OpenAlex and get its citations)."""
             i, paper = paper_tuple
 
             print(f"Processing paper {i+1}/{len(papers_to_process)}: {paper.get('title', '')[:60]}...")
@@ -118,31 +117,28 @@ class CitationScorer:
             if openalex_work:
                 openalex_id = openalex_work['openalex_id']
 
-                # Thread-safe network update
-                with network_lock:
-                    self.library_network.add(openalex_id)
-
                 # Thread-safe ID map update
                 paper_key = paper.get('zotero_key') or paper.get('title')
                 with id_map_lock:
                     self.openalex_id_map[paper_key] = openalex_id
 
-                # Get citations and references
+                # Get citations (papers that cite this library paper)
                 print(f"  Found in OpenAlex: {openalex_id}")
                 citations = openalex_client.get_citations(openalex_id, limit=max_citations)
-                references = openalex_client.get_references(openalex_id, limit=max_references)
 
-                # Thread-safe network update
+                # Track which library paper each citing paper cites
                 with network_lock:
-                    for work in citations + references:
-                        if work.get('openalex_id'):
-                            self.library_network.add(work['openalex_id'])
+                    for citing_work in citations:
+                        citing_id = citing_work.get('openalex_id')
+                        if citing_id:
+                            # Map: citing_paper -> set of library papers it cites
+                            self.citation_network[citing_id].add(openalex_id)
 
-                print(f"  Added {len(citations)} citations and {len(references)} references")
-                return (True, len(citations), len(references))
+                print(f"  Added {len(citations)} citing papers")
+                return (True, len(citations))
             else:
                 print(f"  Not found in OpenAlex")
-                return (False, 0, 0)
+                return (False, 0)
 
         # Process papers in parallel
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -159,34 +155,39 @@ class CitationScorer:
                 except Exception as e:
                     print(f"Error processing paper: {e}")
 
-        # Cache the network with build parameters (same as sequential version)
+        # Cache the network with build parameters
         print("Saving citation network to cache...")
         with open(cache_file, 'wb') as f:
             pickle.dump({
-                'network': self.library_network,
+                'citation_network': dict(self.citation_network),  # Convert defaultdict to dict for pickling
                 'id_map': self.openalex_id_map,
                 'build_params': {
                     'max_citations': max_citations,
-                    'max_references': max_references,
                     'num_papers': len(papers_to_process)
                 }
             }, f)
 
-        print(f"Citation network built with {len(self.library_network)} works.")
-        print(f"  Parameters: max_citations={max_citations}, max_references={max_references}, {len(papers_to_process)} papers, {max_workers} workers")
+        print(f"Citation network built with {len(self.citation_network)} citing papers.")
+        print(f"  Parameters: max_citations={max_citations}, {len(papers_to_process)} papers, {max_workers} workers")
 
     def compute_citation_scores(self, candidate_papers: List[Dict]) -> List[Dict]:
         """
         Compute citation proximity scores for candidate papers.
 
+        Scores based on how many library papers the candidate cites:
+        - Cites 1 library paper: 0.5
+        - Cites 2 library papers: 0.75
+        - Cites 3+ library papers: 1.0
+        - Cites 0 library papers: 0.0
+
         Args:
             candidate_papers: List of papers to score
 
         Returns:
-            List of papers with added 'citation_score' field
+            List of papers with added 'citation_score' and 'library_papers_cited' fields
         """
-        if not self.library_network:
-            raise ValueError("Library network not built. Call build_library_network first.")
+        if not self.citation_network:
+            raise ValueError("Citation network not built. Call build_library_network first.")
 
         scored_papers = []
 
@@ -196,121 +197,38 @@ class CitationScorer:
             if not openalex_id:
                 # Skip papers without OpenAlex ID
                 paper['citation_score'] = 0.0
-                paper['in_network'] = False
+                paper['library_papers_cited'] = 0
                 scored_papers.append(paper)
                 continue
 
-            # Check if paper is in network
-            if openalex_id in self.library_network:
-                score = 1.0
-                in_network = True
+            # Check how many library papers this candidate cites
+            if openalex_id in self.citation_network:
+                cited_library_papers = self.citation_network[openalex_id]
+                num_cited = len(cited_library_papers)
+
+                # Score based on number of library papers cited
+                if num_cited >= 3:
+                    score = 1.0
+                elif num_cited == 2:
+                    score = 0.75
+                elif num_cited == 1:
+                    score = 0.5
+                else:
+                    score = 0.0
+
+                paper['library_papers_cited'] = num_cited
             else:
                 score = 0.0
-                in_network = False
+                paper['library_papers_cited'] = 0
 
             paper['citation_score'] = score
-            paper['in_network'] = in_network
             scored_papers.append(paper)
-
-        return scored_papers
-
-    def compute_advanced_citation_scores(self, openalex_client, candidate_papers: List[Dict],
-                                        check_depth: int = 1, max_citations: int = 500,
-                                        max_references: int = 500, max_workers: int = 5) -> List[Dict]:
-        """
-        Compute citation scores with deeper network analysis using parallel processing.
-
-        Uses multithreading to process multiple candidate papers concurrently for 3-5x speedup.
-        The rate limiter ensures we still respect OpenAlex API limits (10 req/sec).
-
-        Args:
-            openalex_client: OpenAlexClient instance (must be thread-safe)
-            candidate_papers: List of papers to score
-            check_depth: How deep to check citations (1 = direct, 2 = second-degree)
-            max_citations: Maximum number of citations to fetch per paper (default: 500)
-            max_references: Maximum number of references to fetch per paper (default: 500)
-            max_workers: Number of parallel worker threads (default: 5)
-
-        Returns:
-            List of papers with citation scores
-        """
-        if not self.library_network:
-            raise ValueError("Library network not built.")
-
-        if not candidate_papers:
-            return []
-
-        print(f"Scoring {len(candidate_papers)} candidates ({max_workers} workers)...")
-
-        def score_paper(paper_tuple):
-            """Score a single candidate paper."""
-            i, paper = paper_tuple
-
-            print(f"Scoring citation network for paper {i+1}/{len(candidate_papers)}...")
-
-            openalex_id = paper.get('openalex_id')
-
-            if not openalex_id:
-                paper['citation_score'] = 0.0
-                paper['network_connections'] = 0
-                return paper
-
-            # Direct match
-            if openalex_id in self.library_network:
-                paper['citation_score'] = 1.0
-                paper['network_connections'] = 1
-                return paper
-
-            # Check citations and references
-            connections = 0
-
-            if check_depth >= 1:
-                # Get paper's citations and references
-                citations = openalex_client.get_citations(openalex_id, limit=max_citations)
-                references = openalex_client.get_references(openalex_id, limit=max_references)
-
-                # Count connections to library network
-                for work in citations + references:
-                    work_id = work.get('openalex_id')
-                    if work_id and work_id in self.library_network:
-                        connections += 1
-
-            # Compute score based on connections
-            # Score ranges from 0 to 0.8 (direct match is 1.0)
-            score = min(0.8, connections * 0.1)
-
-            paper['citation_score'] = score
-            paper['network_connections'] = connections
-            return paper
-
-        # Process papers in parallel
-        scored_papers = [None] * len(candidate_papers)  # Preserve order
-
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all papers with their index
-            futures = {
-                executor.submit(score_paper, (i, paper)): i
-                for i, paper in enumerate(candidate_papers)
-            }
-
-            # Collect results in order
-            for future in as_completed(futures):
-                idx = futures[future]
-                try:
-                    scored_papers[idx] = future.result()
-                except Exception as e:
-                    print(f"Error scoring paper {idx + 1}: {e}")
-                    # Return original paper with zero score
-                    paper = candidate_papers[idx]
-                    paper['citation_score'] = 0.0
-                    paper['network_connections'] = 0
-                    scored_papers[idx] = paper
 
         return scored_papers
 
     def get_network_stats(self) -> Dict:
         """Get statistics about the citation network."""
         return {
-            'total_works': len(self.library_network),
+            'citing_papers': len(self.citation_network),
             'library_papers_mapped': len(self.openalex_id_map)
         }

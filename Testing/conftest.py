@@ -165,7 +165,11 @@ def sample_candidate_papers():
 def mock_citation_network():
     """Sample citation network data."""
     return {
-        'network': {'W123', 'W456', 'W789', 'W1001'},
+        'citation_network': {
+            'W1001': {'W123'},  # W1001 cites library paper W123
+            'W1002': {'W123', 'W456'},  # W1002 cites library papers W123 and W456
+            'W1003': {'W456', 'W789'},  # W1003 cites library papers W456 and W789
+        },
         'id_map': {
             'KEY1': 'W123',
             'KEY2': 'W456',
@@ -173,7 +177,6 @@ def mock_citation_network():
         },
         'build_params': {
             'max_citations': 20,
-            'max_references': 20,
             'num_papers': 3
         }
     }
