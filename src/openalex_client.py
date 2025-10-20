@@ -3,6 +3,7 @@ OpenAlex API client for citation network and paper discovery.
 """
 import os
 import time
+import pickle
 from typing import List, Dict, Optional, Set
 import requests
 from dotenv import load_dotenv
@@ -13,20 +14,49 @@ class OpenAlexClient:
 
     BASE_URL = "https://api.openalex.org"
 
-    def __init__(self, email: Optional[str] = None):
+    def __init__(self, email: Optional[str] = None, cache_dir: str = ".cache"):
         """
         Initialize OpenAlex client.
 
         Args:
             email: Email for polite pool (gets higher rate limits)
+            cache_dir: Directory for caching journal mappings
         """
         load_dotenv()
         self.email = email or os.getenv("OPENALEX_EMAIL")
         self.session = requests.Session()
+        self.cache_dir = cache_dir
+        self.journal_cache_file = os.path.join(cache_dir, "journal_id_cache.pkl")
+        self.journal_cache = self._load_journal_cache()
 
         # Add email to headers for polite pool
         if self.email:
             self.session.headers.update({"User-Agent": f"mailto:{self.email}"})
+
+    def _load_journal_cache(self) -> Dict[str, Dict]:
+        """
+        Load journal name-to-ID cache from disk.
+
+        Returns:
+            Dictionary mapping normalized journal names to source metadata
+        """
+        if os.path.exists(self.journal_cache_file):
+            try:
+                with open(self.journal_cache_file, 'rb') as f:
+                    return pickle.load(f)
+            except Exception as e:
+                print(f"Warning: Could not load journal cache: {e}")
+                return {}
+        return {}
+
+    def _save_journal_cache(self):
+        """Save journal cache to disk."""
+        os.makedirs(self.cache_dir, exist_ok=True)
+        try:
+            with open(self.journal_cache_file, 'wb') as f:
+                pickle.dump(self.journal_cache, f)
+        except Exception as e:
+            print(f"Warning: Could not save journal cache: {e}")
 
     def find_work_by_doi(self, doi: str) -> Optional[Dict]:
         """
@@ -169,6 +199,7 @@ class OpenAlexClient:
     def find_source_by_name(self, source_name: str) -> Optional[Dict]:
         """
         Find a source (journal/venue) in OpenAlex by name.
+        Uses cache to avoid repeated API calls.
 
         Args:
             source_name: Name of journal/source
@@ -179,6 +210,14 @@ class OpenAlexClient:
         if not source_name:
             return None
 
+        # Normalize name for cache lookup
+        normalized_name = source_name.lower().strip()
+
+        # Check cache first
+        if normalized_name in self.journal_cache:
+            return self.journal_cache[normalized_name]
+
+        # Not in cache, fetch from API
         url = f"{self.BASE_URL}/sources"
         params = {
             "filter": f"display_name.search:{source_name}",
@@ -192,7 +231,7 @@ class OpenAlexClient:
             results = data.get('results', [])
             if results:
                 source = results[0]
-                return {
+                source_data = {
                     'id': source.get('id', '').replace('https://openalex.org/', ''),
                     'display_name': source.get('display_name', ''),
                     'issn_l': source.get('issn_l', ''),
@@ -200,11 +239,22 @@ class OpenAlexClient:
                     'type': source.get('type', '')
                 }
 
+                # Cache the result
+                self.journal_cache[normalized_name] = source_data
+                self._save_journal_cache()
+
+                return source_data
+
+        # Cache negative result to avoid repeated failed lookups
+        self.journal_cache[normalized_name] = None
+        self._save_journal_cache()
+
         return None
 
     def resolve_journal_ids(self, journal_names: List[str]) -> List[str]:
         """
         Resolve journal names to OpenAlex source IDs.
+        Uses cache to avoid repeated API calls.
 
         Args:
             journal_names: List of journal names
@@ -213,15 +263,32 @@ class OpenAlexClient:
             List of OpenAlex source IDs
         """
         source_ids = []
+        cache_hits = 0
+        api_calls = 0
 
         for name in journal_names:
+            normalized_name = name.lower().strip()
+            was_cached = normalized_name in self.journal_cache
+
             source = self.find_source_by_name(name)
+
             if source:
                 source_ids.append(source['id'])
-                print(f"  Matched '{name}' -> {source['display_name']} ({source['id']})")
+                cache_indicator = " (cached)" if was_cached else ""
+                print(f"  Matched '{name}' -> {source['display_name']} ({source['id']}){cache_indicator}")
+                if was_cached:
+                    cache_hits += 1
+                else:
+                    api_calls += 1
             else:
                 print(f"  Could not find source for '{name}'")
-            time.sleep(0.05)  # Be polite to API
+
+            # Only sleep if we made an API call
+            if not was_cached:
+                time.sleep(0.05)  # Be polite to API
+
+        if cache_hits > 0:
+            print(f"  Cache stats: {cache_hits} hits, {api_calls} API calls")
 
         return source_ids
 

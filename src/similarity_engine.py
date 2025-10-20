@@ -169,8 +169,8 @@ class SimilarityEngine:
             top_k = min(5, len(similarities))
             avg_top_similarity = np.mean([sim for sim, _ in similarities[:top_k]])
 
-            paper['similarity_score'] = max_similarity
-            paper['avg_top_similarity'] = avg_top_similarity
+            paper['similarity_score'] = float(max_similarity)
+            paper['avg_top_similarity'] = float(avg_top_similarity)
 
             # Store most similar library paper
             most_similar_paper = self.library_papers[most_similar_idx]
@@ -178,7 +178,7 @@ class SimilarityEngine:
                 'title': most_similar_paper.get('title', 'Unknown'),
                 'authors': most_similar_paper.get('authors', []),
                 'year': most_similar_paper.get('year', ''),
-                'similarity': max_similarity
+                'similarity': float(max_similarity)
             }
 
             scored_papers.append(paper)
@@ -221,7 +221,7 @@ class SimilarityEngine:
 
         for sim, idx in similarities[:top_k]:
             lib_paper = self.library_papers[idx].copy()
-            lib_paper['similarity'] = sim
+            lib_paper['similarity'] = float(sim)
             top_papers.append(lib_paper)
 
         return top_papers

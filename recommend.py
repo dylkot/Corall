@@ -288,7 +288,8 @@ def collections():
 
 @cli.command()
 @click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
-def clear_cache(confirm):
+@click.option('--journals-only', is_flag=True, help='Clear only journal ID cache')
+def clear_cache(confirm, journals_only):
     """Clear all cached data (embeddings, citation network, etc.)."""
     import shutil
 
@@ -296,6 +297,30 @@ def clear_cache(confirm):
 
     if not os.path.exists(cache_dir):
         click.echo("No cache directory found. Nothing to clear.")
+        return
+
+    # Handle journals-only mode
+    if journals_only:
+        journal_cache_file = os.path.join(cache_dir, "journal_id_cache.pkl")
+        if not os.path.exists(journal_cache_file):
+            click.echo("No journal cache found. Nothing to clear.")
+            return
+
+        size = os.path.getsize(journal_cache_file)
+        size_kb = size / 1024
+        click.echo(f"\nJournal cache: {size_kb:.2f} KB")
+
+        if not confirm:
+            if not click.confirm('\nAre you sure you want to clear the journal cache?'):
+                click.echo("Cache clearing cancelled.")
+                return
+
+        try:
+            os.remove(journal_cache_file)
+            click.echo("\n✓ Journal cache cleared successfully!")
+        except Exception as e:
+            click.echo(f"Error clearing journal cache: {e}", err=True)
+            sys.exit(1)
         return
 
     # Check what's in the cache

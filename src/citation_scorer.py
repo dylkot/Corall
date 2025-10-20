@@ -44,10 +44,43 @@ class CitationScorer:
             print("Loading citation network from cache...")
             with open(cache_file, 'rb') as f:
                 cache_data = pickle.load(f)
-                self.library_network = cache_data['network']
-                self.openalex_id_map = cache_data['id_map']
-                print(f"Loaded network with {len(self.library_network)} works.")
-                return
+
+                # Check if cache has parameter metadata
+                cached_params = cache_data.get('build_params', {})
+                cached_max_citations = cached_params.get('max_citations', 0)
+                cached_max_references = cached_params.get('max_references', 0)
+                cached_num_papers = cached_params.get('num_papers', 0)
+
+                # Determine if we need to rebuild
+                needs_rebuild = False
+                rebuild_reasons = []
+
+                # Check if requested limits are higher than cached
+                if max_citations > cached_max_citations:
+                    needs_rebuild = True
+                    rebuild_reasons.append(f"max_citations increased ({cached_max_citations} -> {max_citations})")
+
+                if max_references > cached_max_references:
+                    needs_rebuild = True
+                    rebuild_reasons.append(f"max_references increased ({cached_max_references} -> {max_references})")
+
+                # Check if library has grown significantly (more than 10% or 5 papers)
+                current_num_papers = len(library_papers[:max_papers] if max_papers else library_papers)
+                if current_num_papers > cached_num_papers + max(5, cached_num_papers * 0.1):
+                    needs_rebuild = True
+                    rebuild_reasons.append(f"library grew significantly ({cached_num_papers} -> {current_num_papers} papers)")
+
+                if needs_rebuild:
+                    print(f"Cache exists but needs rebuild:")
+                    for reason in rebuild_reasons:
+                        print(f"  - {reason}")
+                    print("Rebuilding citation network...")
+                else:
+                    self.library_network = cache_data['network']
+                    self.openalex_id_map = cache_data['id_map']
+                    print(f"Loaded network with {len(self.library_network)} works.")
+                    print(f"  Built with: max_citations={cached_max_citations}, max_references={cached_max_references}, {cached_num_papers} papers")
+                    return
 
         # Build new network
         print("Building citation network from library...")
@@ -90,15 +123,21 @@ class CitationScorer:
             else:
                 print(f"  Not found in OpenAlex")
 
-        # Cache the network
+        # Cache the network with build parameters
         print("Saving citation network to cache...")
         with open(cache_file, 'wb') as f:
             pickle.dump({
                 'network': self.library_network,
-                'id_map': self.openalex_id_map
+                'id_map': self.openalex_id_map,
+                'build_params': {
+                    'max_citations': max_citations,
+                    'max_references': max_references,
+                    'num_papers': len(papers_to_process)
+                }
             }, f)
 
         print(f"Citation network built with {len(self.library_network)} works.")
+        print(f"  Parameters: max_citations={max_citations}, max_references={max_references}, {len(papers_to_process)} papers")
 
     def compute_citation_scores(self, candidate_papers: List[Dict]) -> List[Dict]:
         """
