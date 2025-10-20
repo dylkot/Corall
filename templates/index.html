@@ -626,9 +626,9 @@
             let mostSimilarHtml = '';
             if (mostSimilar) {
                 let similarTitle = mostSimilar.title || 'Unknown';
-                // Truncate to 40 characters
-                if (similarTitle.length > 40) {
-                    similarTitle = similarTitle.substring(0, 40) + '...';
+                // Truncate to 60 characters
+                if (similarTitle.length > 60) {
+                    similarTitle = similarTitle.substring(0, 60) + '...';
                 }
                 mostSimilarHtml = `<br><strong>Most similar to:</strong> "${similarTitle}" (similarity: ${(mostSimilar.similarity || 0).toFixed(3)})`;
             }
