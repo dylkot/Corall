@@ -9,6 +9,10 @@ config.json
 *.pkl
 *.pickle
 
+# Testing data
+Testing/Test_Data/
+Testing/.ipynb_checkpoints/
+
 # Python
 __pycache__/
 *.py[cod]
