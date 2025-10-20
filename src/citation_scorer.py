@@ -24,7 +24,8 @@ class CitationScorer:
         os.makedirs(cache_dir, exist_ok=True)
 
     def build_library_network(self, openalex_client, library_papers: List[Dict],
-                              force_rebuild: bool = False, max_papers: Optional[int] = None):
+                              force_rebuild: bool = False, max_papers: Optional[int] = None,
+                              max_citations: int = 20, max_references: int = 20):
         """
         Build citation network from library papers.
 
@@ -33,6 +34,8 @@ class CitationScorer:
             library_papers: List of library paper dictionaries
             force_rebuild: Force rebuilding even if cache exists
             max_papers: Maximum number of library papers to process (for testing)
+            max_citations: Maximum number of citations to fetch per paper (default: 20)
+            max_references: Maximum number of references to fetch per paper (default: 20)
         """
         cache_file = os.path.join(self.cache_dir, "citation_network.pkl")
 
@@ -75,8 +78,8 @@ class CitationScorer:
 
                 # Get citations and references
                 print(f"  Found in OpenAlex: {openalex_id}")
-                citations = openalex_client.get_citations(openalex_id, limit=20)
-                references = openalex_client.get_references(openalex_id, limit=20)
+                citations = openalex_client.get_citations(openalex_id, limit=max_citations)
+                references = openalex_client.get_references(openalex_id, limit=max_references)
 
                 # Add to network
                 for work in citations + references:

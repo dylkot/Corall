@@ -131,13 +131,16 @@ class OpenAlexClient:
 
         return []
 
-    def get_citation_network(self, openalex_id: str, depth: int = 1) -> Set[str]:
+    def get_citation_network(self, openalex_id: str, depth: int = 1,
+                            max_citations: int = 20, max_references: int = 20) -> Set[str]:
         """
         Build citation network around a work.
 
         Args:
             openalex_id: OpenAlex work ID
             depth: How many hops to explore (1 = direct citations/references)
+            max_citations: Maximum number of citations to fetch per paper (default: 20)
+            max_references: Maximum number of references to fetch per paper (default: 20)
 
         Returns:
             Set of OpenAlex IDs in the network
@@ -149,11 +152,11 @@ class OpenAlexClient:
             new_works = set()
             for work_id in to_explore:
                 # Get citations
-                citations = self.get_citations(work_id, limit=20)
+                citations = self.get_citations(work_id, limit=max_citations)
                 new_works.update(c['openalex_id'] for c in citations if c.get('openalex_id'))
 
                 # Get references
-                references = self.get_references(work_id, limit=20)
+                references = self.get_references(work_id, limit=max_references)
                 new_works.update(r['openalex_id'] for r in references if r.get('openalex_id'))
 
                 time.sleep(0.1)  # Be polite to API
