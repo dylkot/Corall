@@ -27,7 +27,7 @@ class CitationScorer:
 
     def build_library_network(self, openalex_client, library_papers: List[Dict],
                               force_rebuild: bool = False, max_papers: Optional[int] = None,
-                              max_citations: int = 20, max_references: int = 20,
+                              max_citations: int = 500, max_references: int = 500,
                               max_workers: int = 5):
         """
         Build citation network from library papers using parallel processing.
@@ -40,8 +40,8 @@ class CitationScorer:
             library_papers: List of library paper dictionaries
             force_rebuild: Force rebuilding even if cache exists
             max_papers: Maximum number of library papers to process (for testing)
-            max_citations: Maximum number of citations to fetch per paper (default: 20)
-            max_references: Maximum number of references to fetch per paper (default: 20)
+            max_citations: Maximum number of citations to fetch per paper (default: 500)
+            max_references: Maximum number of references to fetch per paper (default: 500)
             max_workers: Number of parallel worker threads (default: 5)
         """
         cache_file = os.path.join(self.cache_dir, "citation_network.pkl")
@@ -215,8 +215,8 @@ class CitationScorer:
         return scored_papers
 
     def compute_advanced_citation_scores(self, openalex_client, candidate_papers: List[Dict],
-                                        check_depth: int = 1, max_citations: int = 10,
-                                        max_references: int = 10, max_workers: int = 5) -> List[Dict]:
+                                        check_depth: int = 1, max_citations: int = 500,
+                                        max_references: int = 500, max_workers: int = 5) -> List[Dict]:
         """
         Compute citation scores with deeper network analysis using parallel processing.
 
@@ -227,8 +227,8 @@ class CitationScorer:
             openalex_client: OpenAlexClient instance (must be thread-safe)
             candidate_papers: List of papers to score
             check_depth: How deep to check citations (1 = direct, 2 = second-degree)
-            max_citations: Maximum number of citations to fetch per paper (default: 10)
-            max_references: Maximum number of references to fetch per paper (default: 10)
+            max_citations: Maximum number of citations to fetch per paper (default: 500)
+            max_references: Maximum number of references to fetch per paper (default: 500)
             max_workers: Number of parallel worker threads (default: 5)
 
         Returns:
