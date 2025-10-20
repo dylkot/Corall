@@ -28,7 +28,7 @@ class CitationScorer:
 
     def build_library_network(self, openalex_client, library_papers: List[Dict],
                               force_rebuild: bool = False, max_papers: Optional[int] = None,
-                              max_citations: int = 500,
+                              max_citations: Optional[int] = None,
                               max_workers: int = 5):
         """
         Build citation network from library papers using parallel processing.
@@ -45,7 +45,7 @@ class CitationScorer:
             library_papers: List of library paper dictionaries
             force_rebuild: Force rebuilding even if cache exists
             max_papers: Maximum number of library papers to process (for testing)
-            max_citations: Maximum number of citations to fetch per paper (default: 500)
+            max_citations: Maximum number of citations to fetch per paper (None = fetch all)
             max_workers: Number of parallel worker threads (default: 5)
         """
         cache_file = os.path.join(self.cache_dir, "citation_network.pkl")
@@ -66,7 +66,23 @@ class CitationScorer:
                 rebuild_reasons = []
 
                 # Check if requested limits are higher than cached
-                if max_citations > cached_max_citations:
+                # Handle None (fetch all) vs numeric limits
+                # Note: cached_max_citations of 0 means old cache format without build_params, should rebuild
+                if cached_max_citations == 0:
+                    # Old cache format, trigger rebuild
+                    needs_rebuild = True
+                    rebuild_reasons.append("old cache format detected (no build params)")
+                elif max_citations is None:
+                    # Want to fetch all citations
+                    if cached_max_citations is not None:
+                        # Cache was built with a limit, need to rebuild to get all
+                        needs_rebuild = True
+                        rebuild_reasons.append(f"max_citations changed from {cached_max_citations} to unlimited")
+                elif cached_max_citations is None:
+                    # Cache has all citations, we're requesting limited - no rebuild needed
+                    pass
+                elif max_citations > cached_max_citations:
+                    # Both are numbers, and we want more than what's cached
                     needs_rebuild = True
                     rebuild_reasons.append(f"max_citations increased ({cached_max_citations} -> {max_citations})")
 
@@ -85,7 +101,8 @@ class CitationScorer:
                     self.citation_network = cache_data.get('citation_network', defaultdict(set))
                     self.openalex_id_map = cache_data['id_map']
                     print(f"Loaded citation network with {len(self.citation_network)} citing papers.")
-                    print(f"  Built with: max_citations={cached_max_citations}, {cached_num_papers} papers")
+                    max_cit_str = "unlimited" if cached_max_citations is None else str(cached_max_citations)
+                    print(f"  Built with: max_citations={max_cit_str}, {cached_num_papers} papers")
                     return
 
         # Build new network with parallel processing
@@ -168,7 +185,8 @@ class CitationScorer:
             }, f)
 
         print(f"Citation network built with {len(self.citation_network)} citing papers.")
-        print(f"  Parameters: max_citations={max_citations}, {len(papers_to_process)} papers, {max_workers} workers")
+        max_cit_str = "unlimited" if max_citations is None else str(max_citations)
+        print(f"  Parameters: max_citations={max_cit_str}, {len(papers_to_process)} papers, {max_workers} workers")
 
     def compute_citation_scores(self, candidate_papers: List[Dict]) -> List[Dict]:
         """

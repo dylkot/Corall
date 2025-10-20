@@ -117,37 +117,68 @@ class OpenAlexClient:
 
         return None
 
-    def get_citations(self, openalex_id: str, limit: int = 50) -> List[Dict]:
+    def get_citations(self, openalex_id: str, limit: Optional[int] = None) -> List[Dict]:
         """
         Get papers that cite this work.
 
         Optimized to fetch only IDs for network building (20-50x faster than full metadata).
+        Uses cursor pagination to fetch ALL citations when limit=None.
 
         Args:
             openalex_id: OpenAlex work ID
-            limit: Maximum number of citations to retrieve
+            limit: Maximum number of citations to retrieve (None = fetch all)
 
         Returns:
             List of citing works with minimal metadata (openalex_id only)
         """
         url = f"{self.BASE_URL}/works"
+
+        # First request using cursor pagination
         params = {
             "filter": f"cites:{openalex_id}",
-            "per_page": min(limit, 200),
-            "select": "id"  # Only fetch ID field for speed
+            "per_page": 200,  # Max per page
+            "select": "id",  # Only fetch ID field for speed
+            "cursor": "*"  # Start cursor pagination
         }
 
         response = self._make_request(url, params=params)
+        if not response or response.status_code != 200:
+            return []
 
-        if response and response.status_code == 200:
-            data = response.json()
-            # Return minimal dicts with just openalex_id (no need for full parsing)
-            return [
-                {'openalex_id': work.get('id', '').replace('https://openalex.org/', '')}
-                for work in data.get('results', [])
-            ]
+        data = response.json()
+        all_results = [
+            {'openalex_id': work.get('id', '').replace('https://openalex.org/', '')}
+            for work in data.get('results', [])
+        ]
 
-        return []
+        # If limit is set and we've reached it, return early
+        if limit and len(all_results) >= limit:
+            return all_results[:limit]
+
+        # Continue fetching if limit is None or we haven't reached it
+        next_cursor = data.get('meta', {}).get('next_cursor')
+
+        while next_cursor and (limit is None or len(all_results) < limit):
+            params['cursor'] = next_cursor
+            response = self._make_request(url, params=params)
+
+            if response and response.status_code == 200:
+                page_data = response.json()
+                page_results = [
+                    {'openalex_id': work.get('id', '').replace('https://openalex.org/', '')}
+                    for work in page_data.get('results', [])
+                ]
+                all_results.extend(page_results)
+                next_cursor = page_data.get('meta', {}).get('next_cursor')
+                time.sleep(0.1)  # Be polite to API
+            else:
+                break
+
+        # Apply limit if specified
+        if limit:
+            return all_results[:limit]
+
+        return all_results
 
     def get_references(self, openalex_id: str, limit: int = 50) -> List[Dict]:
         """
