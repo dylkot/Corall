@@ -140,7 +140,8 @@ class CitationScorer:
         return scored_papers
 
     def compute_advanced_citation_scores(self, openalex_client, candidate_papers: List[Dict],
-                                        check_depth: int = 1) -> List[Dict]:
+                                        check_depth: int = 1, max_citations: int = 10,
+                                        max_references: int = 10) -> List[Dict]:
         """
         Compute citation scores with deeper network analysis.
 
@@ -148,6 +149,8 @@ class CitationScorer:
             openalex_client: OpenAlexClient instance
             candidate_papers: List of papers to score
             check_depth: How deep to check citations (1 = direct, 2 = second-degree)
+            max_citations: Maximum number of citations to fetch per paper (default: 10)
+            max_references: Maximum number of references to fetch per paper (default: 10)
 
         Returns:
             List of papers with citation scores
@@ -180,8 +183,8 @@ class CitationScorer:
 
             if check_depth >= 1:
                 # Get paper's citations and references
-                citations = openalex_client.get_citations(openalex_id, limit=10)
-                references = openalex_client.get_references(openalex_id, limit=10)
+                citations = openalex_client.get_citations(openalex_id, limit=max_citations)
+                references = openalex_client.get_references(openalex_id, limit=max_references)
 
                 # Count connections to library network
                 for work in citations + references:
