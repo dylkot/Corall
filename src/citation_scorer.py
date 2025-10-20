@@ -29,7 +29,7 @@ class CitationScorer:
     def build_library_network(self, openalex_client, library_papers: List[Dict],
                               force_rebuild: bool = False, max_papers: Optional[int] = None,
                               max_citations: Optional[int] = None,
-                              max_workers: int = 5):
+                              max_workers: int = 2):
         """
         Build citation network from library papers using parallel processing.
 
@@ -37,8 +37,8 @@ class CitationScorer:
         each citing paper references. This allows scoring based on how many
         library papers a candidate cites (1=0.5, 2=0.75, 3+=1.0).
 
-        Uses multithreading to process multiple papers concurrently for 3-5x speedup.
-        The rate limiter ensures we still respect OpenAlex API limits (10 req/sec).
+        Uses multithreading to process multiple papers concurrently.
+        The rate limiter ensures we respect OpenAlex API limits (10 req/sec).
 
         Args:
             openalex_client: OpenAlexClient instance (must be thread-safe)
@@ -46,7 +46,7 @@ class CitationScorer:
             force_rebuild: Force rebuilding even if cache exists
             max_papers: Maximum number of library papers to process (for testing)
             max_citations: Maximum number of citations to fetch per paper (None = fetch all)
-            max_workers: Number of parallel worker threads (default: 5)
+            max_workers: Number of parallel worker threads (default: 2, conservative for rate limits)
         """
         cache_file = os.path.join(self.cache_dir, "citation_network.pkl")
 
