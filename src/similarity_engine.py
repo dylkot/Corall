@@ -153,20 +153,34 @@ class SimilarityEngine:
 
             # Compute similarity to all library papers
             similarities = []
-            for lib_emb in self.library_embeddings:
+            for j, lib_emb in enumerate(self.library_embeddings):
                 # Cosine similarity (1 - cosine distance)
                 sim = 1 - cosine(candidate_emb, lib_emb)
-                similarities.append(sim)
+                similarities.append((sim, j))
+
+            # Sort by similarity
+            similarities.sort(reverse=True, key=lambda x: x[0])
 
             # Use max similarity to any library paper
-            max_similarity = max(similarities)
+            max_similarity = similarities[0][0]
+            most_similar_idx = similarities[0][1]
 
             # Also compute average of top-k similarities
             top_k = min(5, len(similarities))
-            avg_top_similarity = np.mean(sorted(similarities, reverse=True)[:top_k])
+            avg_top_similarity = np.mean([sim for sim, _ in similarities[:top_k]])
 
             paper['similarity_score'] = max_similarity
             paper['avg_top_similarity'] = avg_top_similarity
+
+            # Store most similar library paper
+            most_similar_paper = self.library_papers[most_similar_idx]
+            paper['most_similar_paper'] = {
+                'title': most_similar_paper.get('title', 'Unknown'),
+                'authors': most_similar_paper.get('authors', []),
+                'year': most_similar_paper.get('year', ''),
+                'similarity': max_similarity
+            }
+
             scored_papers.append(paper)
 
         return scored_papers

@@ -144,11 +144,22 @@ def recommend(days, top, citation_weight, similarity_weight, min_citation,
 
             authors = paper.get('authors', [])
             if authors:
-                author_names = [a.get('name', '') for a in authors[:3]]
-                author_str = ', '.join(author_names)
-                if len(authors) > 3:
-                    author_str += ', et al.'
+                # Format: First 2 authors ... Last 2 authors
+                author_names = [a.get('name', '') for a in authors]
+                if len(author_names) <= 4:
+                    author_str = ', '.join(author_names)
+                else:
+                    first_two = ', '.join(author_names[:2])
+                    last_two = ', '.join(author_names[-2:])
+                    author_str = f"{first_two} ... {last_two}"
                 click.echo(f"   Authors: {author_str}")
+
+            # Show most similar paper from library
+            most_similar = paper.get('most_similar_paper')
+            if most_similar:
+                similar_title = most_similar.get('title', 'Unknown')
+                similar_sim = most_similar.get('similarity', 0)
+                click.echo(f"   Most similar to: \"{similar_title}\" (similarity: {similar_sim:.3f})")
 
             if paper.get('publication_date'):
                 click.echo(f"   Published: {paper.get('publication_date')}")

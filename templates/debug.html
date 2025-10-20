@@ -385,8 +385,20 @@
             const debug = data.debug_info;
 
             const title = paper.title || 'Unknown Title';
-            const authors = paper.authors?.slice(0, 3).map(a => a.name).join(', ') || 'Unknown Authors';
-            const moreAuthors = paper.authors?.length > 3 ? ', et al.' : '';
+
+            // Format authors: First 2 ... Last 2
+            let authors = 'Unknown Authors';
+            if (paper.authors && paper.authors.length > 0) {
+                const authorNames = paper.authors.map(a => a.name);
+                if (authorNames.length <= 4) {
+                    authors = authorNames.join(', ');
+                } else {
+                    const firstTwo = authorNames.slice(0, 2).join(', ');
+                    const lastTwo = authorNames.slice(-2).join(', ');
+                    authors = `${firstTwo} ... ${lastTwo}`;
+                }
+            }
+
             const date = paper.publication_date || 'Unknown Date';
             const journal = paper.journal || 'Unknown Journal';
             const doi = paper.doi;
@@ -404,11 +416,12 @@
                     </div>
 
                     <div class="paper-meta">
-                        <strong>Authors:</strong> ${authors}${moreAuthors}<br>
+                        <strong>Authors:</strong> ${authors}<br>
                         <strong>Published:</strong> ${date}<br>
                         <strong>Journal:</strong> ${journal}<br>
                         <strong>Citations:</strong> ${debug.cited_by_count}
                         ${openAccess ? '<span class="badge badge-success">Open Access</span>' : ''}
+                        ${paper.most_similar_paper ? `<br><strong>Most similar to:</strong> "${paper.most_similar_paper.title}" (similarity: ${(paper.most_similar_paper.similarity || 0).toFixed(3)})` : ''}
                     </div>
 
                     <div class="score-grid">

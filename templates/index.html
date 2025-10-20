@@ -596,8 +596,20 @@
 
         function createPaperCard(paper, index) {
             const title = paper.title || 'Unknown Title';
-            const authors = paper.authors?.slice(0, 3).map(a => a.name).join(', ') || 'Unknown Authors';
-            const moreAuthors = paper.authors?.length > 3 ? ', et al.' : '';
+
+            // Format authors: First 2 ... Last 2
+            let authors = 'Unknown Authors';
+            if (paper.authors && paper.authors.length > 0) {
+                const authorNames = paper.authors.map(a => a.name);
+                if (authorNames.length <= 4) {
+                    authors = authorNames.join(', ');
+                } else {
+                    const firstTwo = authorNames.slice(0, 2).join(', ');
+                    const lastTwo = authorNames.slice(-2).join(', ');
+                    authors = `${firstTwo} ... ${lastTwo}`;
+                }
+            }
+
             const date = paper.publication_date || 'Unknown Date';
             const journal = paper.journal || 'Unknown Journal';
             const doi = paper.doi;
@@ -608,6 +620,12 @@
             const combinedScore = (paper.combined_score || 0) * 100;
             const citationScore = (paper.citation_score || 0) * 100;
             const similarityScore = (paper.similarity_score || 0) * 100;
+
+            // Most similar paper from library
+            const mostSimilar = paper.most_similar_paper;
+            const mostSimilarHtml = mostSimilar
+                ? `<br><strong>Most similar to:</strong> "${mostSimilar.title}" (similarity: ${(mostSimilar.similarity || 0).toFixed(3)})`
+                : '';
 
             const abstract = paper.abstract || '';
             const showExpand = abstract.length > 300;
@@ -621,11 +639,12 @@
                     </div>
 
                     <div class="paper-meta">
-                        <strong>Authors:</strong> ${authors}${moreAuthors}<br>
+                        <strong>Authors:</strong> ${authors}<br>
                         <strong>Published:</strong> ${date}<br>
                         <strong>Journal:</strong> ${journal}
                         ${openAccess ? '<span class="badge badge-open-access">Open Access</span>' : ''}
                         ${pdfUrl ? `<a href="${pdfUrl}" target="_blank" style="color: #667eea; text-decoration: none;">📄 Website</a>` : ''}
+                        ${mostSimilarHtml}
                     </div>
 
                     <div class="score-bar">
