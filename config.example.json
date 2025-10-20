@@ -1,0 +1,21 @@
+{
+  "zotero": {
+    "api_key": "your_zotero_api_key_here",
+    "user_id": "your_zotero_user_id_here",
+    "library_type": "user"
+  },
+  "openalex": {
+    "email": "your_email@example.com"
+  },
+  "recommendation": {
+    "default_days_back": 7,
+    "default_top_n": 10,
+    "citation_weight": 0.3,
+    "similarity_weight": 0.7,
+    "min_citation_score": 0.0,
+    "min_similarity_score": 0.0
+  },
+  "cache": {
+    "directory": ".cache"
+  }
+}

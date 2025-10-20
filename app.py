@@ -1,0 +1,289 @@
+"""
+Flask web server for Corall paper recommendation system.
+"""
+import os
+import json
+from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
+from dotenv import load_dotenv
+
+from src.recommender import PaperRecommender
+from src.journal_lists import TOP_BIOLOGY_MEDICINE_JOURNALS, load_journals_from_file
+
+load_dotenv()
+
+app = Flask(__name__)
+CORS(app)
+
+# Global recommender instance
+recommender = None
+is_initialized = False
+
+
+@app.route('/')
+def index():
+    """Serve the main HTML page."""
+    return render_template('index.html')
+
+
+@app.route('/debug')
+def debug_page():
+    """Serve the debug page."""
+    return render_template('debug.html')
+
+
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    """Get initialization status."""
+    cache_dir = ".cache"
+    embeddings_exist = os.path.exists(os.path.join(cache_dir, "library_embeddings.pkl"))
+    citation_exist = os.path.exists(os.path.join(cache_dir, "citation_network.pkl"))
+
+    return jsonify({
+        'initialized': embeddings_exist and citation_exist,
+        'embeddings_cached': embeddings_exist,
+        'citations_cached': citation_exist
+    })
+
+
+@app.route('/api/initialize', methods=['POST'])
+def initialize():
+    """Initialize the recommender system."""
+    global recommender, is_initialized
+
+    try:
+        data = request.json or {}
+        force = data.get('force', False)
+        collection_id = data.get('collection_id', None)
+
+        # Set collection ID in environment if provided
+        if collection_id:
+            os.environ['ZOTERO_COLLECTION_ID'] = collection_id
+
+        recommender = PaperRecommender()
+        recommender.initialize(force_rebuild=force)
+        is_initialized = True
+
+        return jsonify({
+            'success': True,
+            'message': 'Recommendation engine initialized successfully'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/recommend', methods=['POST'])
+def get_recommendations():
+    """Get paper recommendations."""
+    global recommender, is_initialized
+
+    try:
+        # Load recommender if not already loaded
+        if not is_initialized or recommender is None:
+            recommender = PaperRecommender()
+            cache_dir = ".cache"
+
+            if not os.path.exists(os.path.join(cache_dir, "library_embeddings.pkl")):
+                return jsonify({
+                    'success': False,
+                    'error': 'System not initialized. Please initialize first.'
+                }), 400
+
+            # Load from cache
+            recommender.library_papers = recommender.zotero.fetch_library()
+            recommender.similarity.build_library_profile(recommender.library_papers)
+            recommender.citation_scorer.build_library_network(
+                recommender.openalex,
+                recommender.library_papers
+            )
+            recommender.is_initialized = True
+            is_initialized = True
+
+        # Parse request
+        data = request.json or {}
+        days_back = data.get('days', 7)
+        top_n = data.get('top', 10)
+        citation_weight = data.get('citation_weight', 0.3)
+        similarity_weight = data.get('similarity_weight', 0.7)
+        use_journal_filter = data.get('use_journal_filter', True)
+        custom_journals = data.get('journals', None)
+        collection_id = data.get('collection_id', None)
+
+        # Set collection ID in environment if provided
+        if collection_id:
+            os.environ['ZOTERO_COLLECTION_ID'] = collection_id
+
+        # Get recommendations
+        recommendations = recommender.get_recommendations(
+            days_back=days_back,
+            limit=top_n,
+            citation_weight=citation_weight,
+            similarity_weight=similarity_weight,
+            use_journal_filter=use_journal_filter,
+            custom_journals=custom_journals
+        )
+
+        return jsonify({
+            'success': True,
+            'count': len(recommendations),
+            'recommendations': recommendations
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/journals/default', methods=['GET'])
+def get_default_journals():
+    """Get the default journal list."""
+    return jsonify({
+        'journals': TOP_BIOLOGY_MEDICINE_JOURNALS
+    })
+
+
+@app.route('/api/journals/library', methods=['GET'])
+def get_library_journals():
+    """Get journals from user's library."""
+    global recommender
+
+    try:
+        if recommender is None or not recommender.library_papers:
+            recommender_temp = PaperRecommender()
+            recommender_temp.library_papers = recommender_temp.zotero.fetch_library()
+        else:
+            recommender_temp = recommender
+
+        journals = recommender_temp.get_top_journals(top_n=50)
+
+        return jsonify({
+            'journals': journals
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/collections', methods=['GET'])
+def get_collections():
+    """List all Zotero collections."""
+    try:
+        from src.zotero_client import ZoteroClient
+
+        zotero_client = ZoteroClient()
+        collections = zotero_client.list_collections()
+
+        return jsonify({
+            'success': True,
+            'collections': collections
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/debug/paper', methods=['POST'])
+def debug_paper():
+    """Debug a specific paper to see why it wasn't recommended."""
+    global recommender, is_initialized
+
+    try:
+        # Load recommender if not already loaded
+        if not is_initialized or recommender is None:
+            recommender = PaperRecommender()
+            cache_dir = ".cache"
+
+            if not os.path.exists(os.path.join(cache_dir, "library_embeddings.pkl")):
+                return jsonify({
+                    'success': False,
+                    'error': 'System not initialized. Please initialize first.'
+                }), 400
+
+            # Load from cache
+            recommender.library_papers = recommender.zotero.fetch_library()
+            recommender.similarity.build_library_profile(recommender.library_papers)
+            recommender.citation_scorer.build_library_network(
+                recommender.openalex,
+                recommender.library_papers
+            )
+            recommender.is_initialized = True
+            is_initialized = True
+
+        # Parse request
+        data = request.json or {}
+        doi = data.get('doi', '').strip()
+        title = data.get('title', '').strip()
+
+        if not doi and not title:
+            return jsonify({
+                'success': False,
+                'error': 'Please provide either a DOI or title'
+            }), 400
+
+        # Find paper in OpenAlex
+        paper = None
+        if doi:
+            paper = recommender.openalex.find_work_by_doi(doi)
+        if not paper and title:
+            paper = recommender.openalex.find_work_by_title(title)
+
+        if not paper:
+            return jsonify({
+                'success': False,
+                'error': 'Paper not found in OpenAlex database',
+                'found_in_openalex': False
+            })
+
+        # Compute scores
+        papers_with_scores = recommender.similarity.compute_similarity([paper])
+        papers_with_scores = recommender.citation_scorer.compute_citation_scores(papers_with_scores)
+
+        scored_paper = papers_with_scores[0]
+
+        # Get recommendation parameters from request
+        citation_weight = data.get('citation_weight', 0.3)
+        similarity_weight = data.get('similarity_weight', 0.7)
+
+        # Compute combined score
+        combined_score = (
+            citation_weight * scored_paper.get('citation_score', 0) +
+            similarity_weight * scored_paper.get('similarity_score', 0)
+        )
+        scored_paper['combined_score'] = combined_score
+
+        return jsonify({
+            'success': True,
+            'found_in_openalex': True,
+            'paper': scored_paper,
+            'debug_info': {
+                'citation_score': scored_paper.get('citation_score', 0),
+                'similarity_score': scored_paper.get('similarity_score', 0),
+                'combined_score': combined_score,
+                'cited_by_count': scored_paper.get('cited_by_count', 0),
+                'in_network': scored_paper.get('in_network', False),
+                'network_connections': scored_paper.get('network_connections', 0)
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
