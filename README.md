@@ -116,6 +116,20 @@ To force rebuild all caches:
 python recommend.py init --force
 ```
 
+### Clear Cache
+
+To clear all cached data (embeddings, citation network, etc.):
+```bash
+python recommend.py clear-cache
+```
+
+This will show you what's in the cache and ask for confirmation before deleting. To skip confirmation:
+```bash
+python recommend.py clear-cache --confirm
+```
+
+After clearing the cache, you'll need to run `init` again to rebuild it.
+
 ### Get Recommendations
 
 Get top 10 papers from the last 7 days:

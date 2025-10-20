@@ -273,6 +273,59 @@ def collections():
 
 
 @cli.command()
+@click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
+def clear_cache(confirm):
+    """Clear all cached data (embeddings, citation network, etc.)."""
+    import shutil
+
+    cache_dir = ".cache"
+
+    if not os.path.exists(cache_dir):
+        click.echo("No cache directory found. Nothing to clear.")
+        return
+
+    # Check what's in the cache
+    cache_files = []
+    if os.path.exists(cache_dir):
+        for item in os.listdir(cache_dir):
+            cache_files.append(item)
+
+    if not cache_files:
+        click.echo("Cache directory is empty. Nothing to clear.")
+        return
+
+    # Show what will be deleted
+    click.echo("\n" + "="*60)
+    click.echo("Cache Contents:")
+    click.echo("="*60)
+    for f in cache_files:
+        file_path = os.path.join(cache_dir, f)
+        if os.path.isfile(file_path):
+            size = os.path.getsize(file_path)
+            size_mb = size / (1024 * 1024)
+            click.echo(f"  {f} ({size_mb:.2f} MB)")
+        else:
+            click.echo(f"  {f} (directory)")
+    click.echo("="*60)
+
+    # Confirm deletion
+    if not confirm:
+        if not click.confirm('\nAre you sure you want to delete all cached data?'):
+            click.echo("Cache clearing cancelled.")
+            return
+
+    # Delete cache
+    try:
+        shutil.rmtree(cache_dir)
+        os.makedirs(cache_dir)
+        click.echo("\n✓ Cache cleared successfully!")
+        click.echo("Run 'recommend.py init' to rebuild the cache.")
+    except Exception as e:
+        click.echo(f"Error clearing cache: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
 @click.argument('output_file', type=click.Path())
 @click.option('--days', type=int, default=7, help='Days back to search for papers')
 @click.option('--top', type=int, default=20, help='Number of recommendations to export')
