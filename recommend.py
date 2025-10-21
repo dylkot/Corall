@@ -23,7 +23,7 @@ def cli():
 @click.option('--force', is_flag=True, help='Force rebuild of all caches')
 @click.option('--max-papers', type=int, default=None, help='Limit number of library papers (for testing)')
 @click.option('--collection-id', type=str, default=None, help='Use specific Zotero collection (ID or name)')
-@click.option('--workers', type=int, default=2, help='Number of parallel workers (default: 2)')
+@click.option('--workers', type=int, default=1, help='Number of parallel workers (default: 1)')
 def init(force, max_papers, collection_id, workers):
     """Initialize the recommendation engine by building profiles and networks."""
     load_dotenv()

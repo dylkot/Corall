@@ -37,14 +37,14 @@ class PaperRecommender:
         self.is_initialized = False
 
     def initialize(self, force_rebuild: bool = False, max_papers: Optional[int] = None,
-                   max_workers: int = 5):
+                   max_workers: int = 1):
         """
         Initialize the recommender by building profiles and networks.
 
         Args:
             force_rebuild: Force rebuilding caches
             max_papers: Maximum number of library papers to process (for testing)
-            max_workers: Number of parallel workers for citation network (default: 5)
+            max_workers: Number of parallel workers for citation network (default: 1)
         """
         print("="*60)
         print("Initializing Paper Recommendation Engine")

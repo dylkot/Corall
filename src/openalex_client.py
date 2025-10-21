@@ -170,7 +170,7 @@ class OpenAlexClient:
                 ]
                 all_results.extend(page_results)
                 next_cursor = page_data.get('meta', {}).get('next_cursor')
-                time.sleep(0.1)  # Be polite to API
+                # Rate limiting handled by _make_request()
             else:
                 break
 
@@ -299,9 +299,7 @@ class OpenAlexClient:
             else:
                 print(f"  Could not find source for '{name}'")
 
-            # Only sleep if we made an API call
-            if not was_cached:
-                time.sleep(0.05)  # Be polite to API
+            # Rate limiting handled by _make_request()
 
         if cache_hits > 0:
             print(f"  Cache stats: {cache_hits} hits, {api_calls} API calls")
@@ -372,7 +370,7 @@ class OpenAlexClient:
                 page_count += 1
 
                 print(f"  Fetched page {page_count} ({len(page_results)} papers, total: {len(all_results)})")
-                time.sleep(0.1)  # Be polite to API
+                # Rate limiting handled by _make_request()
             else:
                 print(f"  Error fetching page {page_count}, stopping pagination")
                 break
@@ -465,11 +463,15 @@ class OpenAlexClient:
                 elapsed = time.time() - self.last_request_time
                 if elapsed < self.min_request_interval:
                     time.sleep(self.min_request_interval - elapsed)
-                self.last_request_time = time.time()
 
             try:
                 response = self.session.get(url, params=params, timeout=30)
                 response.raise_for_status()
+
+                # Update last request time AFTER successful request
+                with self.rate_limit_lock:
+                    self.last_request_time = time.time()
+
                 return response
             except requests.exceptions.HTTPError as e:
                 # Handle 429 (Too Many Requests) with exponential backoff

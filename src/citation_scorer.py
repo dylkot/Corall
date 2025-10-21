@@ -29,7 +29,7 @@ class CitationScorer:
     def build_library_network(self, openalex_client, library_papers: List[Dict],
                               force_rebuild: bool = False, max_papers: Optional[int] = None,
                               max_citations: Optional[int] = None,
-                              max_workers: int = 2):
+                              max_workers: int = 1):
         """
         Build citation network from library papers using parallel processing.
 
@@ -46,7 +46,7 @@ class CitationScorer:
             force_rebuild: Force rebuilding even if cache exists
             max_papers: Maximum number of library papers to process (for testing)
             max_citations: Maximum number of citations to fetch per paper (None = fetch all)
-            max_workers: Number of parallel worker threads (default: 2, conservative for rate limits)
+            max_workers: Number of parallel worker threads (default: 1, sequential to avoid rate limits)
         """
         cache_file = os.path.join(self.cache_dir, "citation_network.pkl")
 
