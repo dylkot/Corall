@@ -23,6 +23,8 @@ class CitationScorer:
         # Maps citing_paper_id -> set of library_paper_ids it cites
         self.citation_network = defaultdict(set)
         self.openalex_id_map = {}
+        # Maps openalex_id -> paper metadata (title, etc.)
+        self.library_paper_metadata = {}
 
         os.makedirs(cache_dir, exist_ok=True)
 
@@ -100,6 +102,7 @@ class CitationScorer:
                 else:
                     self.citation_network = cache_data.get('citation_network', defaultdict(set))
                     self.openalex_id_map = cache_data['id_map']
+                    self.library_paper_metadata = cache_data.get('library_paper_metadata', {})
                     print(f"Loaded citation network with {len(self.citation_network)} citing papers.")
                     max_cit_str = "unlimited" if cached_max_citations is None else str(cached_max_citations)
                     print(f"  Built with: max_citations={max_cit_str}, {cached_num_papers} papers")
@@ -138,6 +141,12 @@ class CitationScorer:
                 paper_key = paper.get('zotero_key') or paper.get('title')
                 with id_map_lock:
                     self.openalex_id_map[paper_key] = openalex_id
+                    # Store library paper metadata for later lookup
+                    self.library_paper_metadata[openalex_id] = {
+                        'title': paper.get('title', 'Unknown Title'),
+                        'authors': paper.get('authors', []),
+                        'year': paper.get('year', '')
+                    }
 
                 # Get citations (papers that cite this library paper)
                 print(f"  Found in OpenAlex: {openalex_id}")
@@ -178,6 +187,7 @@ class CitationScorer:
             pickle.dump({
                 'citation_network': dict(self.citation_network),  # Convert defaultdict to dict for pickling
                 'id_map': self.openalex_id_map,
+                'library_paper_metadata': self.library_paper_metadata,
                 'build_params': {
                     'max_citations': max_citations,
                     'num_papers': len(papers_to_process)
@@ -221,8 +231,8 @@ class CitationScorer:
 
             # Check how many library papers this candidate cites
             if openalex_id in self.citation_network:
-                cited_library_papers = self.citation_network[openalex_id]
-                num_cited = len(cited_library_papers)
+                cited_library_paper_ids = self.citation_network[openalex_id]
+                num_cited = len(cited_library_paper_ids)
 
                 # Score based on number of library papers cited
                 if num_cited >= 3:
@@ -235,9 +245,18 @@ class CitationScorer:
                     score = 0.0
 
                 paper['library_papers_cited'] = num_cited
+
+                # Get up to 3 library papers that this candidate cites
+                cited_papers_info = []
+                for lib_id in list(cited_library_paper_ids)[:3]:
+                    if lib_id in self.library_paper_metadata:
+                        cited_papers_info.append(self.library_paper_metadata[lib_id])
+
+                paper['cited_library_papers'] = cited_papers_info
             else:
                 score = 0.0
                 paper['library_papers_cited'] = 0
+                paper['cited_library_papers'] = []
 
             paper['citation_score'] = score
             scored_papers.append(paper)

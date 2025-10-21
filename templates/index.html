@@ -633,6 +633,21 @@
                 mostSimilarHtml = `<br><strong>Most similar to:</strong> "${similarTitle}" (similarity: ${(mostSimilar.similarity || 0).toFixed(3)})`;
             }
 
+            // Library papers cited by this recommendation
+            const citedPapers = paper.cited_library_papers || [];
+            let citedPapersHtml = '';
+            if (citedPapers.length > 0) {
+                const citedCount = paper.library_papers_cited || citedPapers.length;
+                const citedList = citedPapers.map(cited => {
+                    let citedTitle = cited.title || 'Unknown';
+                    if (citedTitle.length > 60) {
+                        citedTitle = citedTitle.substring(0, 60) + '...';
+                    }
+                    return `<br>&nbsp;&nbsp;&nbsp;• ${citedTitle}`;
+                }).join('');
+                citedPapersHtml = `<br><strong>Cites ${citedCount} of your papers:</strong>${citedList}`;
+            }
+
             const abstract = paper.abstract || '';
             const showExpand = abstract.length > 300;
             const abstractPreview = showExpand ? abstract.substring(0, 300) + '...' : abstract;
@@ -651,6 +666,7 @@
                         ${openAccess ? '<span class="badge badge-open-access">Open Access</span>' : ''}
                         ${pdfUrl ? `<a href="${pdfUrl}" target="_blank" style="color: #667eea; text-decoration: none;">📄 Website</a>` : ''}
                         ${mostSimilarHtml}
+                        ${citedPapersHtml}
                     </div>
 
                     <div class="score-bar">

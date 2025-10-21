@@ -12,6 +12,8 @@ config.json
 # Testing data
 Testing/Test_Data/
 Testing/.ipynb_checkpoints/
+.coverage
+htmlcov/
 
 # Python
 __pycache__/

@@ -164,6 +164,16 @@ def recommend(days, top, citation_weight, similarity_weight, min_citation,
                 similar_sim = most_similar.get('similarity', 0)
                 click.echo(f"   Most similar to: \"{similar_title}\" (similarity: {similar_sim:.3f})")
 
+            # Show library papers cited by this recommendation
+            cited_papers = paper.get('cited_library_papers', [])
+            if cited_papers:
+                click.echo(f"   Cites {paper.get('library_papers_cited', 0)} of your papers:")
+                for cited in cited_papers:
+                    cited_title = cited.get('title', 'Unknown')
+                    if len(cited_title) > 60:
+                        cited_title = cited_title[:60] + '...'
+                    click.echo(f"     • {cited_title}")
+
             if paper.get('publication_date'):
                 click.echo(f"   Published: {paper.get('publication_date')}")
 
