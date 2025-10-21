@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reviewed Papers - Corall</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .back-link {
+            position: absolute;
+            left: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            text-decoration: none;
+            font-size: 1em;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 6px;
+        }
+
+        .back-link:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .paper-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .paper-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .paper-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .paper-title a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .paper-title a:hover {
+            text-decoration: underline;
+        }
+
+        .paper-meta {
+            color: #666;
+            font-size: 0.95em;
+            margin-bottom: 10px;
+        }
+
+        .reviewed-date {
+            color: #28a745;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state h2 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .actions-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .paper-count {
+            font-size: 1.2em;
+            color: #333;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/" class="back-link">← Back to Recommendations</a>
+            <h1>Reviewed Papers</h1>
+            <p>Papers you've already reviewed</p>
+        </div>
+
+        <div class="main-content">
+            <div class="actions-bar">
+                <div class="paper-count">
+                    <span id="paper-count">0</span> reviewed papers
+                </div>
+                <button class="btn btn-danger" onclick="clearAllReviewed()" id="clear-btn">
+                    Clear All Reviewed Papers
+                </button>
+            </div>
+
+            <div id="loading" class="loading">
+                Loading reviewed papers...
+            </div>
+
+            <div id="papers-container"></div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            loadReviewedPapers();
+        });
+
+        function loadReviewedPapers() {
+            $('#loading').show();
+            $('#papers-container').empty();
+
+            $.ajax({
+                url: '/api/reviewed/list',
+                method: 'GET',
+                success: function(response) {
+                    $('#loading').hide();
+
+                    if (response.success) {
+                        const papers = response.papers || [];
+                        $('#paper-count').text(papers.length);
+
+                        if (papers.length === 0) {
+                            showEmptyState();
+                        } else {
+                            displayPapers(papers);
+                        }
+                    } else {
+                        showAlert('error', 'Failed to load reviewed papers: ' + response.error);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('#loading').hide();
+                    showAlert('error', 'Error loading reviewed papers: ' + error);
+                }
+            });
+        }
+
+        function displayPapers(papers) {
+            const container = $('#papers-container');
+            container.empty();
+
+            papers.forEach((paper, index) => {
+                const card = createPaperCard(paper, index + 1);
+                container.append(card);
+            });
+        }
+
+        function createPaperCard(paper, index) {
+            const title = paper.title || 'Unknown Title';
+            const doi = paper.doi;
+            const url = doi ? `https://doi.org/${doi}` : (paper.url || '');
+
+            // Format authors
+            let authors = 'Unknown Authors';
+            if (paper.authors && paper.authors.length > 0) {
+                const authorNames = paper.authors.map(a => a.name || a);
+                if (authorNames.length <= 4) {
+                    authors = authorNames.join(', ');
+                } else {
+                    const firstTwo = authorNames.slice(0, 2).join(', ');
+                    const lastTwo = authorNames.slice(-2).join(', ');
+                    authors = `${firstTwo} ... ${lastTwo}`;
+                }
+            }
+
+            const date = paper.publication_date || 'Unknown Date';
+            const journal = paper.journal || 'Unknown Journal';
+
+            // Format reviewed date
+            let reviewedDate = 'Unknown';
+            if (paper.reviewed_date) {
+                const dt = new Date(paper.reviewed_date);
+                reviewedDate = dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString();
+            }
+
+            const paperId = paper.paper_id || paper.doi || '';
+
+            return `
+                <div class="paper-card" id="reviewed-paper-${index}">
+                    <div class="paper-title">
+                        ${index}. ${url ? `<a href="${url}" target="_blank">${title}</a>` : title}
+                    </div>
+
+                    <div class="paper-meta">
+                        <strong>Authors:</strong> ${authors}<br>
+                        <strong>Published:</strong> ${date}<br>
+                        <strong>Journal:</strong> ${journal}<br>
+                        <span class="reviewed-date">✓ Reviewed on ${reviewedDate}</span>
+                    </div>
+
+                    <div style="margin-top: 15px; text-align: right;">
+                        <button class="btn btn-danger" onclick="removeFromReviewed('${paperId.replace(/'/g, "\\'")}', ${index}); return false;">
+                            Remove from Reviewed
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showEmptyState() {
+            $('#papers-container').html(`
+                <div class="empty-state">
+                    <h2>No Reviewed Papers Yet</h2>
+                    <p>Papers you mark as reviewed will appear here.</p>
+                    <br>
+                    <a href="/" class="btn btn-primary">Go to Recommendations</a>
+                </div>
+            `);
+        }
+
+        function removeFromReviewed(paperId, index) {
+            if (!confirm('Are you sure you want to remove this paper from reviewed?')) {
+                return;
+            }
+
+            // Note: We don't have a remove single paper API endpoint yet
+            // For now, just show a message
+            showAlert('error', 'Remove single paper functionality not yet implemented. Use "Clear All" to reset.');
+        }
+
+        function clearAllReviewed() {
+            if (!confirm('Are you sure you want to clear all reviewed papers? This cannot be undone.')) {
+                return;
+            }
+
+            $.ajax({
+                url: '/api/reviewed/clear',
+                method: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        showAlert('success', 'All reviewed papers cleared');
+                        loadReviewedPapers();
+                    } else {
+                        showAlert('error', 'Failed to clear reviewed papers: ' + response.error);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showAlert('error', 'Error clearing reviewed papers: ' + error);
+                }
+            });
+        }
+
+        function showAlert(type, message) {
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+            const alert = $(`<div class="alert ${alertClass}">${message}</div>`);
+            $('.main-content').prepend(alert);
+
+            setTimeout(() => {
+                alert.fadeOut(function() {
+                    $(this).remove();
+                });
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

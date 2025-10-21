@@ -45,11 +45,33 @@
             opacity: 0.9;
         }
 
-        .debug-link {
+        .header-links {
             position: absolute;
             right: 30px;
             top: 50%;
             transform: translateY(-50%);
+            display: flex;
+            gap: 10px;
+        }
+
+        .header-link {
+            color: white;
+            text-decoration: none;
+            font-size: 1em;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 6px;
+        }
+
+        .header-link:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Legacy support for old debug-link class */
+        .debug-link {
             color: white;
             text-decoration: none;
             font-size: 1em;
@@ -167,6 +189,17 @@
 
         .btn-secondary:hover {
             background: #5a6268;
+        }
+
+        .btn-reviewed {
+            background: #28a745;
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
+        .btn-reviewed:hover {
+            background: #218838;
         }
 
         .btn:disabled {
@@ -333,7 +366,10 @@
 <body>
     <div class="container">
         <div class="header">
-            <a href="/debug" class="debug-link">🔍 Debug Paper</a>
+            <div class="header-links">
+                <a href="/reviewed" class="header-link">✓ Reviewed Papers</a>
+                <a href="/debug" class="header-link">🔍 Debug Paper</a>
+            </div>
             <h1>🔬 Corall</h1>
             <p>Personalized Research Paper Recommendation Engine</p>
         </div>
@@ -576,6 +612,9 @@
             const container = $('#results-container');
             container.empty();
 
+            // Store recommendations for reviewed tracking
+            currentRecommendations = recommendations;
+
             if (recommendations.length === 0) {
                 container.html('<p>No recommendations found. Try adjusting your search parameters.</p>');
                 $('#results-section').show();
@@ -617,6 +656,9 @@
             const pdfUrl = paper.pdf_url;
             const openAccess = paper.open_access;
 
+            // Paper ID for reviewed tracking (use DOI or OpenAlex ID)
+            const paper_id = paper.doi || paper.openalex_id || '';
+
             const combinedScore = (paper.combined_score || 0) * 100;
             const citationScore = (paper.citation_score || 0) * 100;
             const similarityScore = (paper.similarity_score || 0) * 100;
@@ -654,7 +696,7 @@
             const cardId = `paper-${index}`;
 
             return `
-                <div class="paper-card">
+                <div class="paper-card" id="paper-card-${index}">
                     <div class="paper-title">
                         ${index}. ${url ? `<a href="${url}" target="_blank">${title}</a>` : title}
                     </div>
@@ -704,6 +746,12 @@
                             ` : ''}
                         </div>
                     ` : ''}
+
+                    <div style="margin-top: 15px; text-align: right;">
+                        <button class="btn btn-reviewed" onclick="markAsReviewed('${paper_id.replace(/'/g, "\\'")}', ${index}); return false;">
+                            ✓ Mark as Reviewed
+                        </button>
+                    </div>
                 </div>
             `;
         }
@@ -734,6 +782,55 @@
                     $(this).remove();
                 });
             }, 5000);
+        }
+
+        // Store current recommendations for reviewed tracking
+        let currentRecommendations = [];
+
+        function markAsReviewed(paperId, paperIndex) {
+            if (!paperId) {
+                showAlert('error', 'Cannot mark paper as reviewed: No paper ID');
+                return;
+            }
+
+            // Get paper data
+            const paper = currentRecommendations[paperIndex - 1];
+            if (!paper) {
+                showAlert('error', 'Cannot find paper data');
+                return;
+            }
+
+            // Send to API
+            $.ajax({
+                url: '/api/reviewed/mark',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    paper_id: paperId,
+                    paper_data: {
+                        title: paper.title,
+                        authors: paper.authors,
+                        doi: paper.doi,
+                        publication_date: paper.publication_date,
+                        journal: paper.journal,
+                        url: paper.url
+                    }
+                }),
+                success: function(response) {
+                    if (response.success) {
+                        showAlert('success', 'Paper marked as reviewed');
+                        // Remove the paper card from view
+                        $(`#paper-card-${paperIndex}`).fadeOut(function() {
+                            $(this).remove();
+                        });
+                    } else {
+                        showAlert('error', 'Failed to mark paper as reviewed: ' + response.error);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showAlert('error', 'Error marking paper as reviewed: ' + error);
+                }
+            });
         }
     </script>
 </body>

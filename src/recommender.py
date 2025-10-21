@@ -10,6 +10,7 @@ from .openalex_client import OpenAlexClient
 from .similarity_engine import SimilarityEngine
 from .citation_scorer import CitationScorer
 from .journal_lists import TOP_BIOLOGY_MEDICINE_JOURNALS
+from .reviewed_papers import ReviewedPapersManager
 
 
 class PaperRecommender:
@@ -32,6 +33,7 @@ class PaperRecommender:
         self.openalex = OpenAlexClient(openalex_email)
         self.similarity = SimilarityEngine(cache_dir=cache_dir)
         self.citation_scorer = CitationScorer(cache_dir=cache_dir)
+        self.reviewed_manager = ReviewedPapersManager(cache_dir=cache_dir)
 
         self.library_papers = None
         self.is_initialized = False
@@ -213,6 +215,12 @@ class PaperRecommender:
 
             # Apply thresholds
             if citation_score < min_citation_score or similarity_score < min_similarity_score:
+                continue
+
+            # Filter out reviewed papers
+            # Use DOI as primary identifier, fallback to OpenAlex ID
+            paper_id = paper.get('doi') or paper.get('openalex_id')
+            if paper_id and self.reviewed_manager.is_reviewed(paper_id):
                 continue
 
             # Compute combined score
