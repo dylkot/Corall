@@ -30,12 +30,6 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/debug')
-def debug_page():
-    """Serve the debug page."""
-    return render_template('debug.html')
-
-
 @app.route('/reviewed')
 def reviewed_page():
     """Serve the reviewed papers page."""
@@ -197,98 +191,6 @@ def get_collections():
             'collections': collections
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
-@app.route('/api/debug/paper', methods=['POST'])
-def debug_paper():
-    """Debug a specific paper to see why it wasn't recommended."""
-    global recommender, is_initialized
-
-    try:
-        # Load recommender if not already loaded
-        if not is_initialized or recommender is None:
-            recommender = PaperRecommender()
-            cache_dir = ".cache"
-
-            if not os.path.exists(os.path.join(cache_dir, "library_embeddings.pkl")):
-                return jsonify({
-                    'success': False,
-                    'error': 'System not initialized. Please initialize first.'
-                }), 400
-
-            # Load from cache
-            recommender.library_papers = recommender.zotero.fetch_library()
-            recommender.similarity.build_library_profile(recommender.library_papers)
-            recommender.citation_scorer.build_library_network(
-                recommender.openalex,
-                recommender.library_papers
-            )
-            recommender.is_initialized = True
-            is_initialized = True
-
-        # Parse request
-        data = request.json or {}
-        doi = data.get('doi', '').strip()
-        title = data.get('title', '').strip()
-
-        if not doi and not title:
-            return jsonify({
-                'success': False,
-                'error': 'Please provide either a DOI or title'
-            }), 400
-
-        # Find paper in OpenAlex
-        paper = None
-        if doi:
-            paper = recommender.openalex.find_work_by_doi(doi)
-        if not paper and title:
-            paper = recommender.openalex.find_work_by_title(title)
-
-        if not paper:
-            return jsonify({
-                'success': False,
-                'error': 'Paper not found in OpenAlex database',
-                'found_in_openalex': False
-            })
-
-        # Compute scores
-        papers_with_scores = recommender.similarity.compute_similarity([paper])
-        papers_with_scores = recommender.citation_scorer.compute_citation_scores(papers_with_scores)
-
-        scored_paper = papers_with_scores[0]
-
-        # Get recommendation parameters from request
-        citation_weight = data.get('citation_weight', 0.3)
-        similarity_weight = data.get('similarity_weight', 0.7)
-
-        # Compute combined score
-        combined_score = (
-            citation_weight * scored_paper.get('citation_score', 0) +
-            similarity_weight * scored_paper.get('similarity_score', 0)
-        )
-        scored_paper['combined_score'] = combined_score
-
-        return jsonify({
-            'success': True,
-            'found_in_openalex': True,
-            'paper': scored_paper,
-            'debug_info': {
-                'citation_score': scored_paper.get('citation_score', 0),
-                'similarity_score': scored_paper.get('similarity_score', 0),
-                'combined_score': combined_score,
-                'cited_by_count': scored_paper.get('cited_by_count', 0),
-                'in_network': scored_paper.get('in_network', False),
-                'network_connections': scored_paper.get('network_connections', 0)
-            }
-        })
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e)

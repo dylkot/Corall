@@ -45,15 +45,6 @@
             opacity: 0.9;
         }
 
-        .header-links {
-            position: absolute;
-            right: 30px;
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            gap: 10px;
-        }
-
         .header-link {
             color: white;
             text-decoration: none;
@@ -66,23 +57,6 @@
         }
 
         .header-link:hover {
-            opacity: 1;
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        /* Legacy support for old debug-link class */
-        .debug-link {
-            color: white;
-            text-decoration: none;
-            font-size: 1em;
-            opacity: 0.9;
-            transition: opacity 0.3s;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 8px 16px;
-            border-radius: 6px;
-        }
-
-        .debug-link:hover {
             opacity: 1;
             background: rgba(255, 255, 255, 0.3);
         }
@@ -366,10 +340,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="header-links">
-                <a href="/reviewed" class="header-link">✓ Reviewed Papers</a>
-                <a href="/debug" class="header-link">🔍 Debug Paper</a>
-            </div>
+            <a href="/reviewed" class="header-link" style="position: absolute; right: 30px; top: 50%; transform: translateY(-50%);">✓ Reviewed Papers</a>
             <h1>🔬 Corall</h1>
             <p>Personalized Research Paper Recommendation Engine</p>
         </div>
