@@ -468,6 +468,9 @@
             checkStatus();
             loadCollections();
 
+            // Restore previous search state if it exists
+            restoreSearchState();
+
             // Journal preset change
             $('#journal-preset').change(function() {
                 if ($(this).val() === 'custom') {
@@ -486,6 +489,51 @@
                 $('#similarity-weight-value').text($(this).val());
             });
         });
+
+        function saveSearchState(params, results) {
+            // Save search parameters and results to sessionStorage
+            try {
+                sessionStorage.setItem('corall_search_params', JSON.stringify(params));
+                sessionStorage.setItem('corall_search_results', JSON.stringify(results));
+            } catch (e) {
+                console.error('Failed to save search state:', e);
+            }
+        }
+
+        function restoreSearchState() {
+            try {
+                const savedParams = sessionStorage.getItem('corall_search_params');
+                const savedResults = sessionStorage.getItem('corall_search_results');
+
+                if (savedParams) {
+                    const params = JSON.parse(savedParams);
+
+                    // Restore form values
+                    $('#days-input').val(params.days);
+                    $('#top-input').val(params.top);
+                    $('#citation-weight').val(params.citation_weight).trigger('input');
+                    $('#similarity-weight').val(params.similarity_weight).trigger('input');
+
+                    if (params.journal_preset) {
+                        $('#journal-preset').val(params.journal_preset).trigger('change');
+                    }
+
+                    if (params.custom_journals) {
+                        $('#journals-input').val(params.custom_journals);
+                    }
+
+                    // Collection is restored in loadCollections() after options are loaded
+                }
+
+                if (savedResults) {
+                    const results = JSON.parse(savedResults);
+                    // Restore search results
+                    displayResults(results);
+                }
+            } catch (e) {
+                console.error('Failed to restore search state:', e);
+            }
+        }
 
         function loadCollections() {
             $.get(API_BASE + '/collections', function(data) {
@@ -506,6 +554,19 @@
                             select.append(`<option value="${child.id}">  └─ ${child.name} (${child.num_items} items)</option>`);
                         });
                     });
+
+                    // After collections are loaded, restore the saved collection if any
+                    try {
+                        const savedParams = sessionStorage.getItem('corall_search_params');
+                        if (savedParams) {
+                            const params = JSON.parse(savedParams);
+                            if (params.collection_id) {
+                                select.val(params.collection_id);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Failed to restore collection:', e);
+                    }
                 }
             }).fail(function() {
                 console.log('Could not load collections');
@@ -577,6 +638,17 @@
                     .filter(j => j.length > 0);
             }
 
+            // Save search parameters for restoration
+            const searchParams = {
+                days: days,
+                top: top,
+                citation_weight: citationWeight,
+                similarity_weight: similarityWeight,
+                journal_preset: journalPreset,
+                custom_journals: journalPreset === 'custom' ? $('#journals-input').val() : null,
+                collection_id: collectionId || null
+            };
+
             $('#search-btn').prop('disabled', true);
             $('#search-loading').addClass('active');
             $('#results-section').hide();
@@ -597,6 +669,8 @@
                 success: function(data) {
                     $('#search-loading').removeClass('active');
                     $('#search-btn').prop('disabled', false);
+                    // Save state before displaying results
+                    saveSearchState(searchParams, data.recommendations);
                     displayResults(data.recommendations);
                 },
                 error: function(xhr) {
@@ -819,6 +893,20 @@
                 success: function(response) {
                     if (response.success) {
                         showAlert('success', 'Paper marked as reviewed');
+
+                        // Remove paper from currentRecommendations array
+                        currentRecommendations.splice(paperIndex - 1, 1);
+
+                        // Update sessionStorage with the new list
+                        try {
+                            const savedResults = sessionStorage.getItem('corall_search_results');
+                            if (savedResults) {
+                                sessionStorage.setItem('corall_search_results', JSON.stringify(currentRecommendations));
+                            }
+                        } catch (e) {
+                            console.error('Failed to update search state:', e);
+                        }
+
                         // Remove the paper card from view
                         $(`#paper-card-${paperIndex}`).fadeOut(function() {
                             $(this).remove();
