@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from src.recommender import PaperRecommender
 from src.journal_lists import TOP_BIOLOGY_MEDICINE_JOURNALS, load_journals_from_file
 from src.reviewed_papers import ReviewedPapersManager
+from src.email_sender import EmailSender
 
 load_dotenv()
 
@@ -25,6 +26,9 @@ is_initialized = False
 
 # Global reviewed papers manager
 reviewed_manager = ReviewedPapersManager()
+
+# Global email sender
+email_sender = EmailSender()
 
 
 @app.route('/')
@@ -335,6 +339,62 @@ def clear_search_cache():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@app.route('/api/email/send', methods=['POST'])
+def send_results_email():
+    """Send search results via email."""
+    try:
+        data = request.json or {}
+        to_email = data.get('email')
+        results = data.get('results')
+        search_params = data.get('search_params', {})
+
+        if not to_email:
+            return jsonify({
+                'success': False,
+                'error': 'Email address is required'
+            }), 400
+
+        if not results:
+            return jsonify({
+                'success': False,
+                'error': 'No results to send. Please run a search first.'
+            }), 400
+
+        # Check if email is configured
+        if not email_sender.is_configured():
+            return jsonify({
+                'success': False,
+                'error': 'Email not configured. Please set SMTP_USERNAME and SMTP_PASSWORD in .env file.'
+            }), 500
+
+        # Send email
+        email_sender.send_search_results(to_email, results, search_params)
+
+        return jsonify({
+            'success': True,
+            'message': f'Search results sent to {to_email}'
+        })
+
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to send email: {str(e)}'
+        }), 500
+
+
+@app.route('/api/email/configured', methods=['GET'])
+def check_email_configured():
+    """Check if email is configured."""
+    return jsonify({
+        'configured': email_sender.is_configured()
+    })
 
 
 def open_browser():

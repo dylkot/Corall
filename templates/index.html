@@ -445,7 +445,18 @@
             <!-- Results Section -->
             <div id="results-section" style="display: none;">
                 <div class="section">
-                    <h2>Results</h2>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin: 0;">Results</h2>
+                        <div id="email-send-section" style="display: none;">
+                            <input type="email" id="email-input" placeholder="your@email.com" style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; margin-right: 10px; width: 200px;">
+                            <button id="send-email-btn" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.9em;">
+                                📧 Email Results
+                            </button>
+                        </div>
+                    </div>
+                    <div id="email-loading" class="loading" style="display: none;">
+                        <p style="margin-top: 10px;">Sending email...</p>
+                    </div>
                     <div id="results-container"></div>
                 </div>
             </div>
@@ -657,6 +668,51 @@
             });
         });
 
+
+        function displayResults(recommendations) {
+            const container = $('#results-container');
+            container.empty();
+
+            // Store recommendations for reviewed tracking
+            currentRecommendations = recommendations;
+
+            if (recommendations.length === 0) {
+                container.html('<p>No recommendations found. Try adjusting your search parameters.</p>');
+                $('#results-section').show();
+                $('#email-send-section').hide();
+                return;
+            }
+
+            recommendations.forEach((paper, index) => {
+                const card = createPaperCard(paper, index + 1);
+                container.append(card);
+            });
+
+            // Check if email is configured and show email section
+            checkEmailConfigured();
+
+            $('#results-section').show();
+            // Scroll to results
+            $('html, body').animate({
+                scrollTop: $('#results-section').offset().top - 20
+            }, 500);
+        }
+
+        function checkEmailConfigured() {
+            $.get(API_BASE + '/email/configured', function(data) {
+                if (data.configured) {
+                    $('#email-send-section').show();
+                } else {
+                    $('#email-send-section').hide();
+                }
+            }).fail(function() {
+                $('#email-send-section').hide();
+            });
+        }
+
+        // Store current search params for email sending
+        let currentSearchParams = null;
+
         $('#search-btn').click(function() {
             const days = parseInt($('#days-input').val());
             const top = parseInt($('#top-input').val());
@@ -675,7 +731,7 @@
                     .filter(j => j.length > 0);
             }
 
-            // Save search parameters for restoration
+            // Save search parameters for restoration and email
             const searchParams = {
                 days: days,
                 top: top,
@@ -685,6 +741,9 @@
                 custom_journals: journalPreset === 'custom' ? $('#journals-input').val() : null,
                 collection_id: collectionId || null
             };
+
+            // Store for email sending
+            currentSearchParams = searchParams;
 
             $('#search-btn').prop('disabled', true);
             $('#search-loading').addClass('active');
@@ -719,30 +778,52 @@
             });
         });
 
-        function displayResults(recommendations) {
-            const container = $('#results-container');
-            container.empty();
+        $('#send-email-btn').click(function() {
+            const email = $('#email-input').val().trim();
 
-            // Store recommendations for reviewed tracking
-            currentRecommendations = recommendations;
-
-            if (recommendations.length === 0) {
-                container.html('<p>No recommendations found. Try adjusting your search parameters.</p>');
-                $('#results-section').show();
+            if (!email) {
+                showAlert('error', 'Please enter an email address');
                 return;
             }
 
-            recommendations.forEach((paper, index) => {
-                const card = createPaperCard(paper, index + 1);
-                container.append(card);
-            });
+            // Basic email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showAlert('error', 'Please enter a valid email address');
+                return;
+            }
 
-            $('#results-section').show();
-            // Scroll to results
-            $('html, body').animate({
-                scrollTop: $('#results-section').offset().top - 20
-            }, 500);
-        }
+            if (!currentRecommendations || currentRecommendations.length === 0) {
+                showAlert('error', 'No results to send. Please run a search first.');
+                return;
+            }
+
+            $('#send-email-btn').prop('disabled', true);
+            $('#email-loading').show();
+
+            $.ajax({
+                url: API_BASE + '/email/send',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    email: email,
+                    results: currentRecommendations,
+                    search_params: currentSearchParams || {}
+                }),
+                success: function(data) {
+                    $('#email-loading').hide();
+                    $('#send-email-btn').prop('disabled', false);
+                    showAlert('success', data.message || 'Email sent successfully!');
+                    $('#email-input').val(''); // Clear input
+                },
+                error: function(xhr) {
+                    $('#email-loading').hide();
+                    $('#send-email-btn').prop('disabled', false);
+                    const error = xhr.responseJSON?.error || 'Failed to send email';
+                    showAlert('error', error);
+                }
+            });
+        });
 
         function createPaperCard(paper, index) {
             const title = paper.title || 'Unknown Title';
