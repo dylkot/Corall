@@ -109,13 +109,23 @@
 
         .form-group input,
         .form-group select,
-        .form-group textarea {
+        .form-group textarea,
+        .form-group input[type="file"] {
             width: 100%;
             padding: 10px;
             border: 2px solid #e0e0e0;
             border-radius: 6px;
             font-size: 1em;
             transition: border-color 0.3s;
+        }
+
+        .form-group input[type="file"] {
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+
+        .form-group input[type="file"]:hover {
+            border-color: #667eea;
         }
 
         .form-group input:focus,
@@ -394,9 +404,21 @@
                 </div>
 
                 <div class="form-group" id="custom-journals-group" style="display: none;">
-                    <label for="journals-input">Custom Journals (one per line):</label>
-                    <textarea id="journals-input" placeholder="Nature&#10;Science&#10;Cell&#10;Blood"></textarea>
-                    <p class="help-text">Enter journal names, one per line</p>
+                    <label for="journals-input">Custom Journals:</label>
+                    
+                    <!-- File upload option -->
+                    <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
+                        <strong style="display: block; margin-bottom: 10px;">Upload a file</strong>
+                        <input type="file" id="journals-file-input" accept=".txt,.csv" style="margin-bottom: 10px;">
+                        <p class="help-text" style="margin-bottom: 0;">Upload a file with journal names (one per line) or enter manually below</p>
+                    </div>
+                    
+                    <!-- Manual entry -->
+                    <div>
+                        <strong style="display: block; margin-bottom: 10px;">Enter manually</strong>
+                        <textarea id="journals-input" placeholder="Nature&#10;Science&#10;Cell&#10;Blood"></textarea>
+                        <p class="help-text">Enter journal names manually (one per line). Lines starting with # are treated as comments.</p>
+                    </div>
                 </div>
 
                 <div class="form-row">
@@ -449,6 +471,50 @@
                 } else {
                     $('#custom-journals-group').hide();
                 }
+            });
+
+            // Handle journal file upload
+            $('#journals-file-input').change(function(e) {
+                const file = e.target.files[0];
+                if (!file) {
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const content = event.target.result;
+                    
+                    // Parse file content (same logic as load_journals_from_file)
+                    const lines = content.split('\n');
+                    const journals = [];
+                    
+                    for (let line of lines) {
+                        // Strip whitespace
+                        line = line.trim();
+                        
+                        // Skip comments and empty lines
+                        if (!line || line.startsWith('#')) {
+                            continue;
+                        }
+                        
+                        journals.push(line);
+                    }
+
+                    // Populate textarea with parsed journals
+                    $('#journals-input').val(journals.join('\n'));
+                    
+                    if (journals.length > 0) {
+                        showAlert('success', `Loaded ${journals.length} journals from file: ${file.name}`);
+                    } else {
+                        showAlert('error', `No valid journals found in file: ${file.name}`);
+                    }
+                };
+
+                reader.onerror = function() {
+                    showAlert('error', 'Error reading file. Please try again.');
+                };
+
+                reader.readAsText(file);
             });
 
             // Weight sliders
