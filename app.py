@@ -3,6 +3,9 @@ Flask web server for Corall paper recommendation system.
 """
 import os
 import json
+import webbrowser
+import threading
+import time
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -288,5 +291,16 @@ def clear_reviewed_papers():
         }), 500
 
 
+def open_browser():
+    """Open the browser after a short delay to ensure server is ready."""
+    time.sleep(1.5)  # Wait for server to start
+    webbrowser.open('http://127.0.0.1:5000/')
+
+
 if __name__ == '__main__':
+    # Open browser in a separate thread
+    browser_thread = threading.Thread(target=open_browser)
+    browser_thread.daemon = True
+    browser_thread.start()
+    
     app.run(debug=True, port=5000)
