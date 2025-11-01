@@ -298,9 +298,18 @@ def open_browser():
 
 
 if __name__ == '__main__':
-    # Open browser in a separate thread
-    browser_thread = threading.Thread(target=open_browser)
-    browser_thread.daemon = True
-    browser_thread.start()
+    # Only open browser in the actual server process, not in the reloader parent process
+    # WERKZEUG_RUN_MAIN is 'true' only in the reloader child process (where server runs in debug mode)
+    # In non-debug mode, WERKZEUG_RUN_MAIN is not set, so we check for both cases
+    import os
+    debug_mode = True  # Set to True for debug mode
+    if not debug_mode or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        # This is either:
+        # - Non-debug mode (WERKZEUG_RUN_MAIN not set, but debug=False so we're in main process)
+        # - Debug mode reloader child (WERKZEUG_RUN_MAIN='true', this is where server runs)
+        browser_thread = threading.Thread(target=open_browser)
+        browser_thread.daemon = True
+        browser_thread.start()
+    # If debug_mode=True and WERKZEUG_RUN_MAIN is not set, we're in the parent process that spawns reloader - skip
     
-    app.run(debug=True, port=5000)
+    app.run(debug=debug_mode, port=5000)
