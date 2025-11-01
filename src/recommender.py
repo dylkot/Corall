@@ -31,8 +31,18 @@ class PaperRecommender:
         """
         self.zotero = ZoteroClient(zotero_api_key, zotero_user_id)
         self.openalex = OpenAlexClient(openalex_email)
-        self.similarity = SimilarityEngine(cache_dir=cache_dir)
-        self.citation_scorer = CitationScorer(cache_dir=cache_dir)
+
+        # Determine collection key for namespacing caches
+        import os
+        raw_collection = os.getenv("ZOTERO_COLLECTION_ID") or "all"
+        # Safe key for filenames
+        self.collection_key = (
+            ''.join(c if c.isalnum() else '_' for c in raw_collection.lower()).strip('_')
+            or "all"
+        )
+
+        self.similarity = SimilarityEngine(cache_dir=cache_dir, collection_key=self.collection_key)
+        self.citation_scorer = CitationScorer(cache_dir=cache_dir, collection_key=self.collection_key)
         self.reviewed_manager = ReviewedPapersManager(cache_dir=cache_dir)
 
         self.library_papers = None

@@ -12,16 +12,18 @@ from scipy.spatial.distance import cosine
 class SimilarityEngine:
     """Engine for computing semantic similarity between papers."""
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2", cache_dir: str = ".cache"):
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2", cache_dir: str = ".cache", collection_key: Optional[str] = None):
         """
         Initialize similarity engine.
 
         Args:
             model_name: Name of sentence-transformers model to use
             cache_dir: Directory for caching embeddings
+            collection_key: Optional key to namespace cache per Zotero collection
         """
         self.model_name = model_name
         self.cache_dir = cache_dir
+        self.collection_key = collection_key or "all"
         self.model = None
         self.library_embeddings = None
         self.library_papers = None
@@ -43,7 +45,8 @@ class SimilarityEngine:
             papers: List of paper dictionaries
             force_rebuild: Force rebuilding even if cache exists
         """
-        cache_file = os.path.join(self.cache_dir, "library_embeddings.pkl")
+        # Per-collection cache file to avoid cross-collection contamination
+        cache_file = os.path.join(self.cache_dir, f"library_embeddings_{self.collection_key}.pkl")
 
         # Try to load from cache
         if not force_rebuild and os.path.exists(cache_file):

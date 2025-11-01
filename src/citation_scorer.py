@@ -12,14 +12,16 @@ from collections import defaultdict
 class CitationScorer:
     """Scorer for computing citation network proximity."""
 
-    def __init__(self, cache_dir: str = ".cache"):
+    def __init__(self, cache_dir: str = ".cache", collection_key: Optional[str] = None):
         """
         Initialize citation scorer.
 
         Args:
             cache_dir: Directory for caching citation networks
+            collection_key: Optional key to namespace cache per Zotero collection
         """
         self.cache_dir = cache_dir
+        self.collection_key = collection_key or "all"
         # Maps citing_paper_id -> set of library_paper_ids it cites
         self.citation_network = defaultdict(set)
         self.openalex_id_map = {}
@@ -50,7 +52,7 @@ class CitationScorer:
             max_citations: Maximum number of citations to fetch per paper (None = fetch all)
             max_workers: Number of parallel worker threads (default: 1, sequential to avoid rate limits)
         """
-        cache_file = os.path.join(self.cache_dir, "citation_network.pkl")
+        cache_file = os.path.join(self.cache_dir, f"citation_network_{self.collection_key}.pkl")
 
         # Try to load from cache
         if not force_rebuild and os.path.exists(cache_file):

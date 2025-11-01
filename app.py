@@ -40,8 +40,11 @@ def reviewed_page():
 def get_status():
     """Get initialization status."""
     cache_dir = ".cache"
-    embeddings_exist = os.path.exists(os.path.join(cache_dir, "library_embeddings.pkl"))
-    citation_exist = os.path.exists(os.path.join(cache_dir, "citation_network.pkl"))
+    # Allow checking status for a specific collection via query param
+    collection_id = request.args.get('collection_id') or os.getenv('ZOTERO_COLLECTION_ID') or 'all'
+    collection_key = (''.join(c if c.isalnum() else '_' for c in collection_id.lower()).strip('_') or 'all')
+    embeddings_exist = os.path.exists(os.path.join(cache_dir, f"library_embeddings_{collection_key}.pkl"))
+    citation_exist = os.path.exists(os.path.join(cache_dir, f"citation_network_{collection_key}.pkl"))
 
     return jsonify({
         'initialized': embeddings_exist and citation_exist,
@@ -85,27 +88,6 @@ def get_recommendations():
     global recommender, is_initialized
 
     try:
-        # Load recommender if not already loaded
-        if not is_initialized or recommender is None:
-            recommender = PaperRecommender()
-            cache_dir = ".cache"
-
-            if not os.path.exists(os.path.join(cache_dir, "library_embeddings.pkl")):
-                return jsonify({
-                    'success': False,
-                    'error': 'System not initialized. Please initialize first.'
-                }), 400
-
-            # Load from cache
-            recommender.library_papers = recommender.zotero.fetch_library()
-            recommender.similarity.build_library_profile(recommender.library_papers)
-            recommender.citation_scorer.build_library_network(
-                recommender.openalex,
-                recommender.library_papers
-            )
-            recommender.is_initialized = True
-            is_initialized = True
-
         # Parse request
         data = request.json or {}
         days_back = data.get('days', 7)
@@ -119,6 +101,36 @@ def get_recommendations():
         # Set collection ID in environment if provided
         if collection_id:
             os.environ['ZOTERO_COLLECTION_ID'] = collection_id
+
+        # Ensure recommender exists and matches the requested collection
+        if recommender is None:
+            recommender = PaperRecommender()
+            is_initialized = False
+
+        # Compute per-collection cache paths
+        cache_dir = ".cache"
+        raw_collection = os.getenv('ZOTERO_COLLECTION_ID') or 'all'
+        collection_key = (''.join(c if c.isalnum() else '_' for c in raw_collection.lower()).strip('_') or 'all')
+        emb_path = os.path.join(cache_dir, f"library_embeddings_{collection_key}.pkl")
+        cit_path = os.path.join(cache_dir, f"citation_network_{collection_key}.pkl")
+
+        # Lazy-load from per-collection cache if needed
+        if not is_initialized:
+            if not os.path.exists(emb_path):
+                return jsonify({
+                    'success': False,
+                    'error': 'System not initialized for this collection. Please initialize first.'
+                }), 400
+
+            # Load from cache (engines will read per-collection files)
+            recommender.library_papers = recommender.zotero.fetch_library()
+            recommender.similarity.build_library_profile(recommender.library_papers)
+            recommender.citation_scorer.build_library_network(
+                recommender.openalex,
+                recommender.library_papers
+            )
+            recommender.is_initialized = True
+            is_initialized = True
 
         # Get recommendations
         recommendations = recommender.get_recommendations(

@@ -84,10 +84,13 @@ def recommend(days, top, citation_weight, similarity_weight, min_citation,
         # Load recommender
         recommender = PaperRecommender()
 
-        # Check if initialized
+        # Check if initialized for this collection (per-collection cache)
         cache_dir = ".cache"
-        if not os.path.exists(os.path.join(cache_dir, "library_embeddings.pkl")):
-            click.echo("Error: Recommender not initialized. Run 'recommend.py init' first.", err=True)
+        raw_collection = os.getenv("ZOTERO_COLLECTION_ID") or "all"
+        collection_key = (''.join(c if c.isalnum() else '_' for c in raw_collection.lower()).strip('_') or "all")
+        emb_path = os.path.join(cache_dir, f"library_embeddings_{collection_key}.pkl")
+        if not os.path.exists(emb_path):
+            click.echo("Error: Recommender not initialized for this collection. Run 'recommend.py init' first.", err=True)
             sys.exit(1)
 
         # Load from cache
@@ -212,8 +215,11 @@ def stats():
 
         # Load from cache
         cache_dir = ".cache"
-        if not os.path.exists(os.path.join(cache_dir, "library_embeddings.pkl")):
-            click.echo("Error: Recommender not initialized. Run 'recommend.py init' first.", err=True)
+        raw_collection = os.getenv("ZOTERO_COLLECTION_ID") or "all"
+        collection_key = (''.join(c if c.isalnum() else '_' for c in raw_collection.lower()).strip('_') or "all")
+        emb_path = os.path.join(cache_dir, f"library_embeddings_{collection_key}.pkl")
+        if not os.path.exists(emb_path):
+            click.echo("Error: Recommender not initialized for this collection. Run 'recommend.py init' first.", err=True)
             sys.exit(1)
 
         recommender.library_papers = recommender.zotero.fetch_library()
@@ -380,8 +386,11 @@ def export_bibtex(output_file, days, top):
         recommender = PaperRecommender()
 
         cache_dir = ".cache"
-        if not os.path.exists(os.path.join(cache_dir, "library_embeddings.pkl")):
-            click.echo("Error: Recommender not initialized. Run 'recommend.py init' first.", err=True)
+        raw_collection = os.getenv("ZOTERO_COLLECTION_ID") or "all"
+        collection_key = (''.join(c if c.isalnum() else '_' for c in raw_collection.lower()).strip('_') or "all")
+        emb_path = os.path.join(cache_dir, f"library_embeddings_{collection_key}.pkl")
+        if not os.path.exists(emb_path):
+            click.echo("Error: Recommender not initialized for this collection. Run 'recommend.py init' first.", err=True)
             sys.exit(1)
 
         click.echo("Loading recommendation engine...")
