@@ -298,7 +298,8 @@ def collections():
 @cli.command()
 @click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
 @click.option('--journals-only', is_flag=True, help='Clear only journal ID cache')
-def clear_cache(confirm, journals_only):
+@click.option('--search-only', is_flag=True, help='Clear only search results cache')
+def clear_cache(confirm, journals_only, search_only):
     """Clear all cached data (embeddings, citation network, etc.)."""
     import shutil
 
@@ -306,6 +307,30 @@ def clear_cache(confirm, journals_only):
 
     if not os.path.exists(cache_dir):
         click.echo("No cache directory found. Nothing to clear.")
+        return
+
+    # Handle search-only mode
+    if search_only:
+        search_cache_file = os.path.join(cache_dir, "last_search_results.json")
+        if not os.path.exists(search_cache_file):
+            click.echo("No search results cache found. Nothing to clear.")
+            return
+
+        size = os.path.getsize(search_cache_file)
+        size_kb = size / 1024
+        click.echo(f"\nSearch results cache: {size_kb:.2f} KB")
+
+        if not confirm:
+            if not click.confirm('\nAre you sure you want to clear the search results cache?'):
+                click.echo("Cache clearing cancelled.")
+                return
+
+        try:
+            os.remove(search_cache_file)
+            click.echo("\n✓ Search results cache cleared successfully!")
+        except Exception as e:
+            click.echo(f"Error clearing search results cache: {e}", err=True)
+            sys.exit(1)
         return
 
     # Handle journals-only mode

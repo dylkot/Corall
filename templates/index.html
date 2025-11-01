@@ -528,10 +528,10 @@
         });
 
         function saveSearchState(params, results) {
-            // Save search parameters and results to sessionStorage
+            // Save search parameters and results to localStorage (persists across sessions)
             try {
-                sessionStorage.setItem('corall_search_params', JSON.stringify(params));
-                sessionStorage.setItem('corall_search_results', JSON.stringify(results));
+                localStorage.setItem('corall_search_params', JSON.stringify(params));
+                localStorage.setItem('corall_search_results', JSON.stringify(results));
             } catch (e) {
                 console.error('Failed to save search state:', e);
             }
@@ -539,8 +539,8 @@
 
         function restoreSearchState() {
             try {
-                const savedParams = sessionStorage.getItem('corall_search_params');
-                const savedResults = sessionStorage.getItem('corall_search_results');
+                const savedParams = localStorage.getItem('corall_search_params');
+                const savedResults = localStorage.getItem('corall_search_results');
 
                 if (savedParams) {
                     const params = JSON.parse(savedParams);
@@ -594,7 +594,7 @@
 
                     // After collections are loaded, restore the saved collection if any
                     try {
-                        const savedParams = sessionStorage.getItem('corall_search_params');
+                        const savedParams = localStorage.getItem('corall_search_params');
                         if (savedParams) {
                             const params = JSON.parse(savedParams);
                             if (params.collection_id) {
@@ -934,11 +934,11 @@
                         // Remove paper from currentRecommendations array
                         currentRecommendations.splice(paperIndex - 1, 1);
 
-                        // Update sessionStorage with the new list
+                        // Update localStorage with the new list
                         try {
-                            const savedResults = sessionStorage.getItem('corall_search_results');
+                            const savedResults = localStorage.getItem('corall_search_results');
                             if (savedResults) {
-                                sessionStorage.setItem('corall_search_results', JSON.stringify(currentRecommendations));
+                                localStorage.setItem('corall_search_results', JSON.stringify(currentRecommendations));
                             }
                         } catch (e) {
                             console.error('Failed to update search state:', e);

@@ -145,6 +145,27 @@ def get_recommendations():
             custom_journals=custom_journals
         )
 
+        # Save search results to server-side cache
+        cache_dir = ".cache"
+        os.makedirs(cache_dir, exist_ok=True)
+        search_cache_file = os.path.join(cache_dir, "last_search_results.json")
+        try:
+            with open(search_cache_file, 'w') as f:
+                json.dump({
+                    'params': {
+                        'days': days_back,
+                        'top': top_n,
+                        'citation_weight': citation_weight,
+                        'similarity_weight': similarity_weight,
+                        'use_journal_filter': use_journal_filter,
+                        'custom_journals': custom_journals,
+                        'collection_id': collection_id
+                    },
+                    'results': recommendations
+                }, f, indent=2, default=str)
+        except Exception as e:
+            print(f"Warning: Could not save search results to cache: {e}")
+
         return jsonify({
             'success': True,
             'count': len(recommendations),
@@ -284,6 +305,31 @@ def clear_reviewed_papers():
             'success': True,
             'message': 'All reviewed papers cleared'
         })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/search-cache/clear', methods=['POST'])
+def clear_search_cache():
+    """Clear the cached search results."""
+    try:
+        cache_dir = ".cache"
+        search_cache_file = os.path.join(cache_dir, "last_search_results.json")
+        
+        if os.path.exists(search_cache_file):
+            os.remove(search_cache_file)
+            return jsonify({
+                'success': True,
+                'message': 'Search results cache cleared'
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'message': 'No search cache found to clear'
+            })
     except Exception as e:
         return jsonify({
             'success': False,
