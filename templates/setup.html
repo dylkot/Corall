@@ -44,6 +44,22 @@
             opacity: 0.9;
         }
 
+        .header-link {
+            color: white;
+            text-decoration: none;
+            font-size: 1em;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 6px;
+        }
+
+        .header-link:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
         .main-content {
             padding: 40px;
         }
@@ -309,6 +325,7 @@
 <body>
     <div class="container">
         <div class="header">
+            <a href="/" class="header-link" style="position: absolute; right: 30px; top: 50%; transform: translateY(-50%);">🔍 Go to Search</a>
             <h1>🔬 Corall Setup</h1>
             <p>Let's get your personalized research assistant configured</p>
         </div>
