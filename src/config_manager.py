@@ -45,7 +45,8 @@ class ConfigManager:
                 'api_key': '',
                 'user_id': '',
                 'library_type': 'user',
-                'collection_id': ''
+                'collection_id': '',
+                'collection_name': ''
             },
             'openalex': {
                 'email': ''

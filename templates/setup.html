@@ -802,7 +802,12 @@
             $('#summary-library-type').text($('#zotero-library-type').val());
 
             const collectionId = $('#zotero-collection').val();
-            const collectionName = collectionId ? $('#zotero-collection option:selected').text() : 'Entire Library';
+            let collectionName = 'Entire Library';
+            if (collectionId) {
+                // Get the text and remove item count in parentheses
+                const fullText = $('#zotero-collection option:selected').text();
+                collectionName = fullText.replace(/\s*\(\d+\s+items\)\s*$/, '').trim();
+            }
             $('#summary-collection').text(collectionName);
 
             $('#summary-citation-weight').text($('#citation-weight').val());
@@ -811,12 +816,16 @@
 
         // Initialize
         $('#initialize-btn').click(function() {
+            const collectionId = $('#zotero-collection').val();
+            const collectionName = collectionId ? $('#zotero-collection option:selected').text() : '';
+
             const config = {
                 zotero: {
                     api_key: $('#zotero-api-key').val().trim(),
                     user_id: $('#zotero-user-id').val().trim(),
                     library_type: $('#zotero-library-type').val(),
-                    collection_id: $('#zotero-collection').val()
+                    collection_id: collectionId,
+                    collection_name: collectionName
                 },
                 openalex: {
                     email: $('#openalex-email').val().trim()

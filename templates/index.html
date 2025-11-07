@@ -561,7 +561,8 @@
 
                 // Display collection
                 if (data.zotero && data.zotero.collection_id) {
-                    $('#config-collection').text('Specific collection: ' + data.zotero.collection_id);
+                    const collectionName = data.zotero.collection_name || data.zotero.collection_id;
+                    $('#config-collection').text(collectionName);
                 } else {
                     $('#config-collection').text('Entire Library');
                 }
