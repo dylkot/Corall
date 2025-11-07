@@ -532,6 +532,82 @@
 
         let currentStep = 1;
         let collectionsList = [];
+        let savedConfig = null;
+
+        // Load existing configuration on page load
+        $(document).ready(function() {
+            loadExistingConfig();
+        });
+
+        function loadExistingConfig() {
+            $.get(API_BASE + '/setup/config', function(data) {
+                savedConfig = data;
+
+                // Populate Zotero fields
+                if (data.zotero) {
+                    $('#zotero-api-key').val(data.zotero.api_key || '');
+                    $('#zotero-user-id').val(data.zotero.user_id || '');
+                    $('#zotero-library-type').val(data.zotero.library_type || 'user');
+                }
+
+                // Populate OpenAlex field
+                if (data.openalex) {
+                    $('#openalex-email').val(data.openalex.email || '');
+                }
+
+                // Populate weight fields
+                if (data.recommendation) {
+                    const citationWeight = data.recommendation.citation_weight || 0.3;
+                    const similarityWeight = data.recommendation.similarity_weight || 0.7;
+                    $('#citation-weight').val(citationWeight).trigger('input');
+                    $('#similarity-weight').val(similarityWeight).trigger('input');
+                }
+
+                // If there's a saved collection, we'll need to load collections first
+                if (data.zotero && data.zotero.collection_id) {
+                    // Collections will be loaded when user moves to step 2
+                    // or we can load them now if the API key is set
+                    if (data.zotero.api_key && data.zotero.user_id) {
+                        loadCollectionsForSavedConfig();
+                    }
+                }
+            }).fail(function() {
+                console.log('No existing config found, using defaults');
+            });
+        }
+
+        function loadCollectionsForSavedConfig() {
+            const apiKey = $('#zotero-api-key').val().trim();
+            const userId = $('#zotero-user-id').val().trim();
+            const libraryType = $('#zotero-library-type').val();
+
+            if (!apiKey || !userId) return;
+
+            $.ajax({
+                url: API_BASE + '/setup/list-collections',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    api_key: apiKey,
+                    user_id: userId,
+                    library_type: libraryType
+                }),
+                success: function(data) {
+                    if (data.success && data.collections) {
+                        collectionsList = data.collections;
+                        populateCollectionDropdown();
+
+                        // Select the saved collection
+                        if (savedConfig && savedConfig.zotero && savedConfig.zotero.collection_id) {
+                            $('#zotero-collection').val(savedConfig.zotero.collection_id);
+                        }
+                    }
+                },
+                error: function(xhr) {
+                    console.log('Could not load collections for saved config');
+                }
+            });
+        }
 
         // Weight adjustment
         $('#citation-weight').on('input', function() {
@@ -622,9 +698,18 @@
 
             // Load collections if not already loaded
             if (collectionsList.length === 0) {
-                loadCollections();
+                loadCollections(function() {
+                    // After loading, select saved collection if it exists
+                    if (savedConfig && savedConfig.zotero && savedConfig.zotero.collection_id) {
+                        $('#zotero-collection').val(savedConfig.zotero.collection_id);
+                    }
+                });
             } else {
                 populateCollectionDropdown();
+                // Select saved collection if it exists
+                if (savedConfig && savedConfig.zotero && savedConfig.zotero.collection_id) {
+                    $('#zotero-collection').val(savedConfig.zotero.collection_id);
+                }
             }
 
             goToStep(2);
@@ -664,7 +749,7 @@
             currentStep = step;
         }
 
-        function loadCollections() {
+        function loadCollections(callback) {
             const apiKey = $('#zotero-api-key').val().trim();
             const userId = $('#zotero-user-id').val().trim();
             const libraryType = $('#zotero-library-type').val();
@@ -682,6 +767,7 @@
                     if (data.success && data.collections) {
                         collectionsList = data.collections;
                         populateCollectionDropdown();
+                        if (callback) callback();
                     }
                 },
                 error: function(xhr) {

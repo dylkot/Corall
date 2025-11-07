@@ -194,6 +194,17 @@ def get_config():
     })
 
 
+@app.route('/api/setup/config', methods=['GET'])
+def get_setup_config():
+    """Get full configuration for setup page."""
+    return jsonify({
+        'setup_completed': config_manager.is_setup_completed(),
+        'zotero': config_manager.get_zotero_config(),
+        'openalex': config_manager.config.get('openalex', {}),
+        'recommendation': config_manager.get_recommendation_config()
+    })
+
+
 @app.route('/api/status', methods=['GET'])
 def get_status():
     """Get initialization status."""
