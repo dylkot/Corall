@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corall - Initial Setup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            padding: 0 20px;
+        }
+
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: #e0e0e0;
+            z-index: -1;
+        }
+
+        .step.active:not(:last-child)::after {
+            background: #667eea;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            color: #999;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .step.active .step-circle {
+            background: #667eea;
+            color: white;
+        }
+
+        .step.completed .step-circle {
+            background: #28a745;
+            color: white;
+        }
+
+        .step-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .step.active .step-label {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .section {
+            display: none;
+            margin-bottom: 30px;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .section p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group.inline {
+            display: flex;
+            gap: 20px;
+        }
+
+        .form-group.inline > div {
+            flex: 1;
+        }
+
+        .help-text {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            margin-right: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-test {
+            background: #28a745;
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+
+        .btn-test:hover:not(:disabled) {
+            background: #218838;
+        }
+
+        .button-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .optional-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .optional-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .range-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .range-container input[type="range"] {
+            flex: 1;
+        }
+
+        .range-value {
+            font-weight: bold;
+            color: #667eea;
+            min-width: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔬 Corall Setup</h1>
+            <p>Let's get your personalized research assistant configured</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Progress Steps -->
+            <div class="progress-steps">
+                <div class="step active" id="step-1">
+                    <div class="step-circle">1</div>
+                    <div class="step-label">Zotero</div>
+                </div>
+                <div class="step" id="step-2">
+                    <div class="step-circle">2</div>
+                    <div class="step-label">Collection</div>
+                </div>
+                <div class="step" id="step-3">
+                    <div class="step-circle">3</div>
+                    <div class="step-label">Weights</div>
+                </div>
+                <div class="step" id="step-4">
+                    <div class="step-circle">4</div>
+                    <div class="step-label">Initialize</div>
+                </div>
+            </div>
+
+            <!-- Step 1: Zotero Configuration -->
+            <div class="section active" id="section-1">
+                <h2>Step 1: Zotero Configuration</h2>
+                <p>Connect Corall to your Zotero library to analyze your research interests.</p>
+
+                <div class="alert alert-info">
+                    <strong>Where to find your Zotero credentials:</strong><br>
+                    1. Go to <a href="https://www.zotero.org/settings/keys" target="_blank">https://www.zotero.org/settings/keys</a><br>
+                    2. Click "Create new private key"<br>
+                    3. Give it a descriptive name and allow library access<br>
+                    4. Your User ID is shown in the URL bar (e.g., zotero.org/users/<strong>12345</strong>)
+                </div>
+
+                <div class="form-group">
+                    <label for="zotero-api-key">Zotero API Key *</label>
+                    <input type="text" id="zotero-api-key" placeholder="Enter your Zotero API key" required>
+                    <p class="help-text">Your private API key for accessing your Zotero library</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="zotero-user-id">Zotero User ID *</label>
+                    <input type="text" id="zotero-user-id" placeholder="e.g., 12345678" required>
+                    <p class="help-text">Your numeric Zotero user ID</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="zotero-library-type">Library Type</label>
+                    <select id="zotero-library-type">
+                        <option value="user">Personal Library (user)</option>
+                        <option value="group">Group Library (group)</option>
+                    </select>
+                    <p class="help-text">Usually "user" for your personal library</p>
+                </div>
+
+                <div class="optional-section">
+                    <h3>Optional: OpenAlex Configuration</h3>
+                    <div class="form-group">
+                        <label for="openalex-email">Your Email Address</label>
+                        <input type="email" id="openalex-email" placeholder="your@email.com">
+                        <p class="help-text">Providing your email to OpenAlex gives you higher API rate limits (recommended)</p>
+                    </div>
+                </div>
+
+                <div class="button-row">
+                    <div></div>
+                    <div>
+                        <button class="btn btn-test" id="test-connection-btn">Test Connection</button>
+                        <button class="btn btn-primary" id="next-1-btn">Next</button>
+                    </div>
+                </div>
+
+                <div id="test-loading" class="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 10px;">Testing connection...</p>
+                </div>
+            </div>
+
+            <!-- Step 2: Collection Selection -->
+            <div class="section" id="section-2">
+                <h2>Step 2: Select Collection</h2>
+                <p>Choose which Zotero collection to use for building your research profile.</p>
+
+                <div class="form-group">
+                    <label for="zotero-collection">Zotero Collection</label>
+                    <select id="zotero-collection">
+                        <option value="">Entire Library (recommended for first-time setup)</option>
+                    </select>
+                    <p class="help-text">You can use your entire library or focus on a specific collection</p>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>Recommendation:</strong> Start with your entire library to build a comprehensive profile. You can always create more focused profiles later using specific collections.
+                </div>
+
+                <div class="button-row">
+                    <button class="btn btn-secondary" id="back-2-btn">Back</button>
+                    <button class="btn btn-primary" id="next-2-btn">Next</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Recommendation Weights -->
+            <div class="section" id="section-3">
+                <h2>Step 3: Recommendation Weights</h2>
+                <p>Configure how Corall ranks paper recommendations. You can adjust these later.</p>
+
+                <div class="alert alert-info">
+                    <strong>How it works:</strong><br>
+                    • <strong>Citation Weight:</strong> Prioritizes papers that cite your library<br>
+                    • <strong>Similarity Weight:</strong> Prioritizes papers with similar content to your library<br>
+                    • Total must sum to 1.0
+                </div>
+
+                <div class="form-group">
+                    <label for="citation-weight">Citation Weight</label>
+                    <div class="range-container">
+                        <input type="range" id="citation-weight" min="0" max="1" step="0.1" value="0.3">
+                        <span class="range-value" id="citation-weight-value">0.3</span>
+                    </div>
+                    <p class="help-text">How much to weight papers that cite your library</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="similarity-weight">Similarity Weight</label>
+                    <div class="range-container">
+                        <input type="range" id="similarity-weight" min="0" max="1" step="0.1" value="0.7">
+                        <span class="range-value" id="similarity-weight-value">0.7</span>
+                    </div>
+                    <p class="help-text">How much to weight content similarity to your library</p>
+                </div>
+
+                <div id="weight-error" class="alert alert-error" style="display: none;">
+                    Weights must sum to 1.0. Currently: <span id="weight-sum">1.0</span>
+                </div>
+
+                <div class="button-row">
+                    <button class="btn btn-secondary" id="back-3-btn">Back</button>
+                    <button class="btn btn-primary" id="next-3-btn">Next</button>
+                </div>
+            </div>
+
+            <!-- Step 4: Initialize -->
+            <div class="section" id="section-4">
+                <h2>Step 4: Initialize System</h2>
+                <p>Ready to build your research profile! This will:</p>
+                <ul style="margin-left: 30px; margin-bottom: 20px; line-height: 1.8;">
+                    <li>Fetch your Zotero library</li>
+                    <li>Generate semantic embeddings for all papers</li>
+                    <li>Build citation network from OpenAlex</li>
+                    <li>Create cached profile for fast recommendations</li>
+                </ul>
+
+                <div class="alert alert-info">
+                    <strong>Time estimate:</strong> This typically takes 5-15 minutes for ~200 papers. The system builds comprehensive caches so future searches are fast (1-3 minutes).
+                </div>
+
+                <div id="config-summary" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="color: #667eea; margin-bottom: 15px;">Configuration Summary</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr style="border-bottom: 1px solid #e0e0e0;">
+                            <td style="padding: 10px; font-weight: 600;">Zotero User ID:</td>
+                            <td style="padding: 10px;" id="summary-user-id"></td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #e0e0e0;">
+                            <td style="padding: 10px; font-weight: 600;">Library Type:</td>
+                            <td style="padding: 10px;" id="summary-library-type"></td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #e0e0e0;">
+                            <td style="padding: 10px; font-weight: 600;">Collection:</td>
+                            <td style="padding: 10px;" id="summary-collection"></td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #e0e0e0;">
+                            <td style="padding: 10px; font-weight: 600;">Citation Weight:</td>
+                            <td style="padding: 10px;" id="summary-citation-weight"></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; font-weight: 600;">Similarity Weight:</td>
+                            <td style="padding: 10px;" id="summary-similarity-weight"></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="button-row">
+                    <button class="btn btn-secondary" id="back-4-btn">Back</button>
+                    <button class="btn btn-primary" id="initialize-btn">Initialize Corall</button>
+                </div>
+
+                <div id="init-loading" class="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 10px;">Initializing... This may take several minutes.</p>
+                    <p style="margin-top: 10px; font-size: 0.9em; color: #666;">Please don't close this page.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        const API_BASE = 'http://127.0.0.1:5000/api';
+
+        let currentStep = 1;
+        let collectionsList = [];
+
+        // Weight adjustment
+        $('#citation-weight').on('input', function() {
+            const val = parseFloat($(this).val());
+            $('#citation-weight-value').text(val.toFixed(1));
+            $('#similarity-weight').val((1 - val).toFixed(1));
+            $('#similarity-weight-value').text((1 - val).toFixed(1));
+            updateWeightError();
+        });
+
+        $('#similarity-weight').on('input', function() {
+            const val = parseFloat($(this).val());
+            $('#similarity-weight-value').text(val.toFixed(1));
+            $('#citation-weight').val((1 - val).toFixed(1));
+            $('#citation-weight-value').text((1 - val).toFixed(1));
+            updateWeightError();
+        });
+
+        function updateWeightError() {
+            const citationWeight = parseFloat($('#citation-weight').val());
+            const similarityWeight = parseFloat($('#similarity-weight').val());
+            const sum = citationWeight + similarityWeight;
+
+            $('#weight-sum').text(sum.toFixed(1));
+
+            if (Math.abs(sum - 1.0) > 0.01) {
+                $('#weight-error').show();
+            } else {
+                $('#weight-error').hide();
+            }
+        }
+
+        // Test Zotero connection
+        $('#test-connection-btn').click(function() {
+            const apiKey = $('#zotero-api-key').val().trim();
+            const userId = $('#zotero-user-id').val().trim();
+            const libraryType = $('#zotero-library-type').val();
+
+            if (!apiKey || !userId) {
+                showAlert('error', 'Please enter both API key and User ID');
+                return;
+            }
+
+            $('#test-connection-btn').prop('disabled', true);
+            $('#test-loading').addClass('active');
+
+            $.ajax({
+                url: API_BASE + '/setup/test-zotero',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    api_key: apiKey,
+                    user_id: userId,
+                    library_type: libraryType
+                }),
+                success: function(data) {
+                    $('#test-loading').removeClass('active');
+                    $('#test-connection-btn').prop('disabled', false);
+
+                    if (data.success) {
+                        showAlert('success', data.message);
+                        // Store collections for next step
+                        if (data.collections) {
+                            collectionsList = data.collections;
+                        }
+                    } else {
+                        showAlert('error', data.message);
+                    }
+                },
+                error: function(xhr) {
+                    $('#test-loading').removeClass('active');
+                    $('#test-connection-btn').prop('disabled', false);
+                    const error = xhr.responseJSON?.error || 'Connection test failed';
+                    showAlert('error', error);
+                }
+            });
+        });
+
+        // Navigation
+        $('#next-1-btn').click(function() {
+            const apiKey = $('#zotero-api-key').val().trim();
+            const userId = $('#zotero-user-id').val().trim();
+
+            if (!apiKey || !userId) {
+                showAlert('error', 'Please enter both API key and User ID');
+                return;
+            }
+
+            // Load collections if not already loaded
+            if (collectionsList.length === 0) {
+                loadCollections();
+            } else {
+                populateCollectionDropdown();
+            }
+
+            goToStep(2);
+        });
+
+        $('#back-2-btn').click(() => goToStep(1));
+        $('#next-2-btn').click(() => goToStep(3));
+        $('#back-3-btn').click(() => goToStep(2));
+        $('#next-3-btn').click(() => {
+            updateWeightError();
+            const sum = parseFloat($('#citation-weight').val()) + parseFloat($('#similarity-weight').val());
+            if (Math.abs(sum - 1.0) > 0.01) {
+                showAlert('error', 'Weights must sum to 1.0');
+                return;
+            }
+            updateSummary();
+            goToStep(4);
+        });
+        $('#back-4-btn').click(() => goToStep(3));
+
+        function goToStep(step) {
+            // Update step indicators
+            for (let i = 1; i <= 4; i++) {
+                if (i < step) {
+                    $(`#step-${i}`).removeClass('active').addClass('completed');
+                } else if (i === step) {
+                    $(`#step-${i}`).removeClass('completed').addClass('active');
+                } else {
+                    $(`#step-${i}`).removeClass('active completed');
+                }
+            }
+
+            // Show/hide sections
+            $('.section').removeClass('active');
+            $(`#section-${step}`).addClass('active');
+
+            currentStep = step;
+        }
+
+        function loadCollections() {
+            const apiKey = $('#zotero-api-key').val().trim();
+            const userId = $('#zotero-user-id').val().trim();
+            const libraryType = $('#zotero-library-type').val();
+
+            $.ajax({
+                url: API_BASE + '/setup/list-collections',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    api_key: apiKey,
+                    user_id: userId,
+                    library_type: libraryType
+                }),
+                success: function(data) {
+                    if (data.success && data.collections) {
+                        collectionsList = data.collections;
+                        populateCollectionDropdown();
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Failed to load collections');
+                }
+            });
+        }
+
+        function populateCollectionDropdown() {
+            const select = $('#zotero-collection');
+            select.empty();
+            select.append('<option value="">Entire Library</option>');
+
+            if (collectionsList.length > 0) {
+                // Group collections by parent
+                const topLevel = collectionsList.filter(c => !c.parent);
+                const children = collectionsList.filter(c => c.parent);
+
+                topLevel.forEach(function(col) {
+                    select.append(`<option value="${col.id}">${col.name} (${col.num_items} items)</option>`);
+
+                    const childCols = children.filter(c => c.parent === col.id);
+                    childCols.forEach(function(child) {
+                        select.append(`<option value="${child.id}">  └─ ${child.name} (${child.num_items} items)</option>`);
+                    });
+                });
+            }
+        }
+
+        function updateSummary() {
+            $('#summary-user-id').text($('#zotero-user-id').val());
+            $('#summary-library-type').text($('#zotero-library-type').val());
+
+            const collectionId = $('#zotero-collection').val();
+            const collectionName = collectionId ? $('#zotero-collection option:selected').text() : 'Entire Library';
+            $('#summary-collection').text(collectionName);
+
+            $('#summary-citation-weight').text($('#citation-weight').val());
+            $('#summary-similarity-weight').text($('#similarity-weight').val());
+        }
+
+        // Initialize
+        $('#initialize-btn').click(function() {
+            const config = {
+                zotero: {
+                    api_key: $('#zotero-api-key').val().trim(),
+                    user_id: $('#zotero-user-id').val().trim(),
+                    library_type: $('#zotero-library-type').val(),
+                    collection_id: $('#zotero-collection').val()
+                },
+                openalex: {
+                    email: $('#openalex-email').val().trim()
+                },
+                recommendation: {
+                    citation_weight: parseFloat($('#citation-weight').val()),
+                    similarity_weight: parseFloat($('#similarity-weight').val())
+                }
+            };
+
+            $('#initialize-btn').prop('disabled', true);
+            $('#init-loading').addClass('active');
+
+            $.ajax({
+                url: API_BASE + '/setup/initialize',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(config),
+                success: function(data) {
+                    $('#init-loading').removeClass('active');
+
+                    if (data.success) {
+                        showAlert('success', 'Setup complete! Redirecting to main application...');
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 2000);
+                    } else {
+                        $('#initialize-btn').prop('disabled', false);
+                        showAlert('error', data.error || 'Initialization failed');
+                    }
+                },
+                error: function(xhr) {
+                    $('#init-loading').removeClass('active');
+                    $('#initialize-btn').prop('disabled', false);
+                    const error = xhr.responseJSON?.error || 'Initialization failed';
+                    showAlert('error', error);
+                }
+            });
+        });
+
+        function showAlert(type, message) {
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+            const alert = $(`<div class="alert ${alertClass}">${message}</div>`);
+            $('.main-content').prepend(alert);
+
+            setTimeout(() => {
+                alert.fadeOut(function() {
+                    $(this).remove();
+                });
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

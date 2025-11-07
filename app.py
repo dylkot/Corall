@@ -6,7 +6,7 @@ import json
 import webbrowser
 import threading
 import time
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -14,11 +14,15 @@ from src.recommender import PaperRecommender
 from src.journal_lists import TOP_BIOLOGY_MEDICINE_JOURNALS, load_journals_from_file
 from src.reviewed_papers import ReviewedPapersManager
 from src.email_sender import EmailSender
+from src.config_manager import ConfigManager
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+# Global config manager
+config_manager = ConfigManager()
 
 # Global recommender instance
 recommender = None
@@ -34,13 +38,160 @@ email_sender = EmailSender()
 @app.route('/')
 def index():
     """Serve the main HTML page."""
+    # Check if setup is completed
+    if not config_manager.is_setup_completed():
+        return redirect(url_for('setup'))
     return render_template('index.html')
+
+
+@app.route('/setup')
+def setup():
+    """Serve the setup page."""
+    return render_template('setup.html')
 
 
 @app.route('/reviewed')
 def reviewed_page():
     """Serve the reviewed papers page."""
     return render_template('reviewed.html')
+
+
+@app.route('/api/setup/test-zotero', methods=['POST'])
+def test_zotero():
+    """Test Zotero connection."""
+    try:
+        data = request.json or {}
+        api_key = data.get('api_key')
+        user_id = data.get('user_id')
+        library_type = data.get('library_type', 'user')
+
+        if not api_key or not user_id:
+            return jsonify({
+                'success': False,
+                'message': 'API key and User ID are required'
+            }), 400
+
+        # Temporarily set environment variables for testing
+        os.environ['ZOTERO_API_KEY'] = api_key
+        os.environ['ZOTERO_USER_ID'] = user_id
+        os.environ['ZOTERO_LIBRARY_TYPE'] = library_type
+
+        # Test connection
+        from src.zotero_client import ZoteroClient
+        client = ZoteroClient()
+        collections = client.list_collections()
+
+        return jsonify({
+            'success': True,
+            'message': f'Successfully connected! Found {len(collections)} collections.',
+            'collections': collections
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Connection failed: {str(e)}'
+        }), 500
+
+
+@app.route('/api/setup/list-collections', methods=['POST'])
+def list_collections():
+    """List Zotero collections."""
+    try:
+        data = request.json or {}
+        api_key = data.get('api_key')
+        user_id = data.get('user_id')
+        library_type = data.get('library_type', 'user')
+
+        if not api_key or not user_id:
+            return jsonify({
+                'success': False,
+                'error': 'API key and User ID are required'
+            }), 400
+
+        # Temporarily set environment variables
+        os.environ['ZOTERO_API_KEY'] = api_key
+        os.environ['ZOTERO_USER_ID'] = user_id
+        os.environ['ZOTERO_LIBRARY_TYPE'] = library_type
+
+        from src.zotero_client import ZoteroClient
+        client = ZoteroClient()
+        collections = client.list_collections()
+
+        return jsonify({
+            'success': True,
+            'collections': collections
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/setup/initialize', methods=['POST'])
+def setup_initialize():
+    """Complete setup and initialize the system."""
+    global recommender, is_initialized
+
+    try:
+        data = request.json or {}
+
+        # Update config manager with new configuration
+        config_manager.config['zotero'] = data.get('zotero', {})
+        config_manager.config['openalex'] = data.get('openalex', {})
+        config_manager.config['recommendation'] = data.get('recommendation', {})
+
+        # Validate configuration
+        is_valid, error_msg = config_manager.validate_zotero_config()
+        if not is_valid:
+            return jsonify({
+                'success': False,
+                'error': error_msg
+            }), 400
+
+        # Update .env file
+        config_manager.update_env_file()
+
+        # Reload environment variables
+        load_dotenv(override=True)
+
+        # Set collection ID if provided
+        collection_id = config_manager.config['zotero'].get('collection_id')
+        if collection_id:
+            os.environ['ZOTERO_COLLECTION_ID'] = collection_id
+
+        # Initialize recommender
+        recommender = PaperRecommender()
+        recommender.initialize(force_rebuild=False)
+        is_initialized = True
+
+        # Mark setup as completed
+        config_manager.mark_setup_completed()
+        config_manager.save_config()
+
+        return jsonify({
+            'success': True,
+            'message': 'Setup completed and system initialized successfully'
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    """Get current configuration."""
+    rec_config = config_manager.get_recommendation_config()
+    return jsonify({
+        'citation_weight': rec_config.get('citation_weight', 0.3),
+        'similarity_weight': rec_config.get('similarity_weight', 0.7),
+        'default_days_back': rec_config.get('default_days_back', 30),
+        'default_top_n': rec_config.get('default_top_n', 100)
+    })
 
 
 @app.route('/api/status', methods=['GET'])
@@ -97,10 +248,16 @@ def get_recommendations():
     try:
         # Parse request
         data = request.json or {}
+
+        # Get default weights from config
+        rec_config = config_manager.get_recommendation_config()
+        default_citation = rec_config.get('citation_weight', 0.3)
+        default_similarity = rec_config.get('similarity_weight', 0.7)
+
         days_back = data.get('days', 7)
         top_n = data.get('top', 10)
-        citation_weight = data.get('citation_weight', 0.3)
-        similarity_weight = data.get('similarity_weight', 0.7)
+        citation_weight = data.get('citation_weight', default_citation)
+        similarity_weight = data.get('similarity_weight', default_similarity)
         use_journal_filter = data.get('use_journal_filter', True)
         custom_journals = data.get('journals', None)
         collection_id = data.get('collection_id', None)
