@@ -357,31 +357,25 @@
         </div>
 
         <div class="main-content">
-            <!-- Status Section -->
-            <div class="section">
-                <h2>System Status</h2>
-                <p>
-                    Status: <span id="status-indicator" class="status-indicator status-not-initialized">Not Initialized</span>
-                </p>
-
-                <div class="form-group" style="margin-top: 15px;">
-                    <label for="collection-select">Zotero Collection (Optional):</label>
-                    <select id="collection-select">
-                        <option value="">Entire Library</option>
-                    </select>
-                    <p class="help-text">Select a specific collection or use your entire library</p>
-                </div>
-
-                <button id="init-btn" class="btn btn-primary" style="margin-top: 15px;">Initialize System</button>
-                <div id="init-loading" class="loading">
-                    <div class="spinner"></div>
-                    <p style="margin-top: 10px;">Initializing... This may take several minutes.</p>
-                </div>
-            </div>
-
             <!-- Search Parameters Section -->
             <div class="section">
                 <h2>Search Parameters</h2>
+
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px; font-size: 1.1em;">Current Configuration</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; color: #666;">
+                        <div>
+                            <strong>Citation Weight:</strong> <span id="config-citation-weight">0.3</span>
+                        </div>
+                        <div>
+                            <strong>Similarity Weight:</strong> <span id="config-similarity-weight">0.7</span>
+                        </div>
+                        <div style="grid-column: 1 / -1;">
+                            <strong>Collection:</strong> <span id="config-collection">Loading...</span>
+                        </div>
+                    </div>
+                    <p class="help-text" style="margin-top: 10px; margin-bottom: 0;">To change these settings, visit the <a href="/setup" style="color: #667eea;">Setup page</a></p>
+                </div>
 
                 <div class="form-group">
                     <label for="days-input">Number of Days Back to Search:</label>
@@ -406,14 +400,14 @@
 
                 <div class="form-group" id="custom-journals-group" style="display: none;">
                     <label for="journals-input">Custom Journals:</label>
-                    
+
                     <!-- File upload option -->
                     <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
                         <strong style="display: block; margin-bottom: 10px;">Upload a file</strong>
                         <input type="file" id="journals-file-input" accept=".txt,.csv" style="margin-bottom: 10px;">
                         <p class="help-text" style="margin-bottom: 0;">Upload a file with journal names (one per line) or enter manually below</p>
                     </div>
-                    
+
                     <!-- Manual entry -->
                     <div>
                         <strong style="display: block; margin-bottom: 10px;">Enter manually</strong>
@@ -422,21 +416,7 @@
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="citation-weight">Citation Weight:</label>
-                        <input type="range" id="citation-weight" min="0" max="1" step="0.1" value="0.3">
-                        <span id="citation-weight-value">0.3</span>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="similarity-weight">Similarity Weight:</label>
-                        <input type="range" id="similarity-weight" min="0" max="1" step="0.1" value="0.7">
-                        <span id="similarity-weight-value">0.7</span>
-                    </div>
-                </div>
-
-                <button id="search-btn" class="btn btn-primary" disabled>Get Recommendations</button>
+                <button id="search-btn" class="btn btn-primary">Get Recommendations</button>
                 <div id="search-loading" class="loading">
                     <div class="spinner"></div>
                     <p style="margin-top: 10px;">Searching for papers...</p>
@@ -470,8 +450,6 @@
 
         // Check status on load
         $(document).ready(function() {
-            checkStatus();
-            loadCollections();
             loadConfig();
 
             // Restore previous search state if it exists
@@ -496,26 +474,26 @@
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const content = event.target.result;
-                    
+
                     // Parse file content (same logic as load_journals_from_file)
                     const lines = content.split('\n');
                     const journals = [];
-                    
+
                     for (let line of lines) {
                         // Strip whitespace
                         line = line.trim();
-                        
+
                         // Skip comments and empty lines
                         if (!line || line.startsWith('#')) {
                             continue;
                         }
-                        
+
                         journals.push(line);
                     }
 
                     // Populate textarea with parsed journals
                     $('#journals-input').val(journals.join('\n'));
-                    
+
                     if (journals.length > 0) {
                         showAlert('success', `Loaded ${journals.length} journals from file: ${file.name}`);
                     } else {
@@ -528,15 +506,6 @@
                 };
 
                 reader.readAsText(file);
-            });
-
-            // Weight sliders
-            $('#citation-weight').on('input', function() {
-                $('#citation-weight-value').text($(this).val());
-            });
-
-            $('#similarity-weight').on('input', function() {
-                $('#similarity-weight-value').text($(this).val());
             });
         });
 
@@ -561,8 +530,6 @@
                     // Restore form values
                     $('#days-input').val(params.days);
                     $('#top-input').val(params.top);
-                    $('#citation-weight').val(params.citation_weight).trigger('input');
-                    $('#similarity-weight').val(params.similarity_weight).trigger('input');
 
                     if (params.journal_preset) {
                         $('#journal-preset').val(params.journal_preset).trigger('change');
@@ -571,8 +538,6 @@
                     if (params.custom_journals) {
                         $('#journals-input').val(params.custom_journals);
                     }
-
-                    // Collection is restored in loadCollections() after options are loaded
                 }
 
                 if (savedResults) {
@@ -585,103 +550,32 @@
             }
         }
 
-        function loadCollections() {
-            $.get(API_BASE + '/collections', function(data) {
-                if (data.success && data.collections) {
-                    const select = $('#collection-select');
-
-                    // Group collections by parent
-                    const topLevel = data.collections.filter(c => !c.parent);
-                    const children = data.collections.filter(c => c.parent);
-
-                    // Add top-level collections
-                    topLevel.forEach(function(col) {
-                        select.append(`<option value="${col.id}">${col.name} (${col.num_items} items)</option>`);
-
-                        // Add child collections with indent
-                        const childCols = children.filter(c => c.parent === col.id);
-                        childCols.forEach(function(child) {
-                            select.append(`<option value="${child.id}">  └─ ${child.name} (${child.num_items} items)</option>`);
-                        });
-                    });
-
-                    // After collections are loaded, restore the saved collection if any
-                    try {
-                        const savedParams = localStorage.getItem('corall_search_params');
-                        if (savedParams) {
-                            const params = JSON.parse(savedParams);
-                            if (params.collection_id) {
-                                select.val(params.collection_id);
-                            }
-                        }
-                    } catch (e) {
-                        console.error('Failed to restore collection:', e);
-                    }
-                }
-            }).fail(function() {
-                console.log('Could not load collections');
-            });
-        }
-
         function loadConfig() {
-            $.get(API_BASE + '/config', function(data) {
-                // Set default weights from config
-                $('#citation-weight').val(data.citation_weight).trigger('input');
-                $('#similarity-weight').val(data.similarity_weight).trigger('input');
-                $('#days-input').val(data.default_days_back || 7);
-                $('#top-input').val(data.default_top_n || 10);
+            // Load full config to display current settings
+            $.get(API_BASE + '/setup/config', function(data) {
+                // Display configuration
+                if (data.recommendation) {
+                    $('#config-citation-weight').text(data.recommendation.citation_weight || 0.3);
+                    $('#config-similarity-weight').text(data.recommendation.similarity_weight || 0.7);
+                }
+
+                // Display collection
+                if (data.zotero && data.zotero.collection_id) {
+                    $('#config-collection').text('Specific collection: ' + data.zotero.collection_id);
+                } else {
+                    $('#config-collection').text('Entire Library');
+                }
+
+                // Set default search parameters
+                if (data.recommendation) {
+                    $('#days-input').val(data.recommendation.default_days_back || 7);
+                    $('#top-input').val(data.recommendation.default_top_n || 10);
+                }
             }).fail(function() {
                 console.log('Could not load config, using defaults');
+                $('#config-collection').text('Not configured');
             });
         }
-
-        function checkStatus() {
-            $.get(API_BASE + '/status', function(data) {
-                if (data.initialized) {
-                    $('#status-indicator')
-                        .removeClass('status-not-initialized')
-                        .addClass('status-initialized')
-                        .text('Initialized');
-                    $('#search-btn').prop('disabled', false);
-                    $('#init-btn').text('Re-initialize');
-                } else {
-                    $('#status-indicator')
-                        .removeClass('status-initialized')
-                        .addClass('status-not-initialized')
-                        .text('Not Initialized');
-                    $('#search-btn').prop('disabled', true);
-                }
-            });
-        }
-
-        $('#init-btn').click(function() {
-            $('#init-btn').prop('disabled', true);
-            $('#init-loading').addClass('active');
-
-            const collectionId = $('#collection-select').val();
-
-            $.ajax({
-                url: API_BASE + '/initialize',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    collection_id: collectionId || null
-                }),
-                success: function(data) {
-                    $('#init-loading').removeClass('active');
-                    $('#init-btn').prop('disabled', false);
-                    checkStatus();
-                    showAlert('success', 'System initialized successfully!');
-                },
-                error: function(xhr) {
-                    $('#init-loading').removeClass('active');
-                    $('#init-btn').prop('disabled', false);
-                    const error = xhr.responseJSON?.error || 'Initialization failed';
-                    showAlert('error', error);
-                }
-            });
-        });
-
 
         function displayResults(recommendations) {
             const container = $('#results-container');
@@ -730,10 +624,7 @@
         $('#search-btn').click(function() {
             const days = parseInt($('#days-input').val());
             const top = parseInt($('#top-input').val());
-            const citationWeight = parseFloat($('#citation-weight').val());
-            const similarityWeight = parseFloat($('#similarity-weight').val());
             const journalPreset = $('#journal-preset').val();
-            const collectionId = $('#collection-select').val();
 
             let useJournalFilter = journalPreset !== 'none';
             let customJournals = null;
@@ -749,11 +640,8 @@
             const searchParams = {
                 days: days,
                 top: top,
-                citation_weight: citationWeight,
-                similarity_weight: similarityWeight,
                 journal_preset: journalPreset,
-                custom_journals: journalPreset === 'custom' ? $('#journals-input').val() : null,
-                collection_id: collectionId || null
+                custom_journals: journalPreset === 'custom' ? $('#journals-input').val() : null
             };
 
             // Store for email sending
@@ -770,11 +658,9 @@
                 data: JSON.stringify({
                     days: days,
                     top: top,
-                    citation_weight: citationWeight,
-                    similarity_weight: similarityWeight,
+                    // citation_weight and similarity_weight will use server defaults from config
                     use_journal_filter: useJournalFilter,
-                    journals: customJournals,
-                    collection_id: collectionId || null
+                    journals: customJournals
                 }),
                 success: function(data) {
                     $('#search-loading').removeClass('active');
