@@ -245,6 +245,39 @@ class PaperRecommender:
         # Sort by combined score
         recommendations.sort(key=lambda x: x['combined_score'], reverse=True)
 
+        # Deduplicate by DOI (preferred) or title (fallback)
+        # Keep the highest-scored version of each paper
+        seen_dois = set()
+        seen_titles = set()
+        deduped_recommendations = []
+        duplicates_removed = 0
+
+        for paper in recommendations:
+            doi = paper.get('doi', '').strip().lower() if paper.get('doi') else None
+            title = paper.get('title', '').strip().lower() if paper.get('title') else None
+
+            # Skip if we've seen this DOI before
+            if doi and doi in seen_dois:
+                duplicates_removed += 1
+                continue
+
+            # Skip if we've seen this exact title before (fallback for papers without DOI)
+            if not doi and title and title in seen_titles:
+                duplicates_removed += 1
+                continue
+
+            # Add to seen sets and keep this paper
+            if doi:
+                seen_dois.add(doi)
+            if title:
+                seen_titles.add(title)
+            deduped_recommendations.append(paper)
+
+        recommendations = deduped_recommendations
+
+        if duplicates_removed > 0:
+            print(f"\nRemoved {duplicates_removed} duplicate papers (same DOI/title with different OpenAlex IDs)")
+
         print(f"\nBefore limit: {len(recommendations)} papers passed filters")
         print(f"  Min thresholds - citation: {min_citation_score}, similarity: {min_similarity_score}")
 
