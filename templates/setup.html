@@ -361,7 +361,7 @@
                     1. Go to <a href="https://www.zotero.org/settings/keys" target="_blank">https://www.zotero.org/settings/keys</a><br>
                     2. Click "Create new private key"<br>
                     3. Give it a descriptive name and allow library access<br>
-                    4. Your User ID is shown in the URL bar (e.g., zotero.org/users/<strong>12345</strong>)
+                    4. Your numeric User ID is displayed on this same page (e.g., "Your user ID for use in API calls is <strong>12345678</strong>")
                 </div>
 
                 <div class="form-group">
@@ -680,7 +680,7 @@
                 error: function(xhr) {
                     $('#test-loading').removeClass('active');
                     $('#test-connection-btn').prop('disabled', false);
-                    const error = xhr.responseJSON?.error || 'Connection test failed';
+                    const error = xhr.responseJSON?.message || 'Connection test failed';
                     showAlert('error', error);
                 }
             });
