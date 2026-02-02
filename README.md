@@ -256,6 +256,43 @@ Try:
 ### Papers not matching to OpenAlex
 Some papers may not be in OpenAlex, especially very recent preprints. The system will still use content similarity for these.
 
+## Building a Standalone Application
+
+Corall can be packaged as a standalone desktop application that doesn't require users to install Python.
+
+### Quick Build
+
+**macOS / Linux:**
+```bash
+./scripts/build_app.sh
+```
+
+**Windows:**
+```cmd
+scripts\build_app.bat
+```
+
+### Output
+
+| Platform | Output | How to Run |
+|----------|--------|------------|
+| macOS | `dist/Corall.app` | Double-click or `open dist/Corall.app` |
+| Windows | `dist/Corall/Corall.exe` | Double-click `Corall.exe` |
+| Linux | `dist/Corall/Corall` | `./dist/Corall/Corall` |
+
+### Installation (macOS)
+
+```bash
+cp -r dist/Corall.app /Applications/
+```
+
+The standalone app stores user data in:
+- **macOS**: `~/Library/Application Support/Corall/`
+- **Windows**: `%APPDATA%\Corall\`
+- **Linux**: `~/.local/share/Corall/`
+
+See [packaging/README.md](packaging/README.md) for detailed build instructions, code signing, and troubleshooting.
+
 ## Architecture
 
 ```
@@ -267,8 +304,11 @@ Corall/
 │   ├── citation_scorer.py     # Citation network scoring
 │   └── recommender.py         # Main recommendation engine
 ├── recommend.py               # CLI interface
+├── app.py                     # Flask web interface
+├── launcher.py                # Standalone app entry point
 ├── requirements.txt           # Python dependencies
 ├── .env                       # Your credentials (create from .env.example)
+├── packaging/                 # Standalone app build files
 └── .cache/                    # Cached data (auto-generated)
 ```
 
