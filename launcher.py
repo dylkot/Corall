@@ -11,7 +11,7 @@ It handles:
 """
 import os
 import sys
-import shutil
+import json
 import signal
 import threading
 import time
@@ -55,12 +55,14 @@ def get_bundle_dir() -> Path:
         return Path(__file__).parent.resolve()
 
 
-def setup_data_directory(app_data_dir: Path, bundle_dir: Path) -> None:
+def setup_data_directory(app_data_dir: Path) -> None:
     """Set up the application data directory with necessary files.
+
+    Creates a clean default config that triggers the setup wizard on first run,
+    rather than copying example files that contain placeholder values.
 
     Args:
         app_data_dir: Path to the user's application data directory
-        bundle_dir: Path to the bundled application files
     """
     # Create data directory if it doesn't exist
     app_data_dir.mkdir(parents=True, exist_ok=True)
@@ -69,24 +71,48 @@ def setup_data_directory(app_data_dir: Path, bundle_dir: Path) -> None:
     cache_dir = app_data_dir / '.cache'
     cache_dir.mkdir(exist_ok=True)
 
-    # Copy default config if it doesn't exist
+    # Create default config if it doesn't exist
+    # Use empty values (not placeholders) so the setup wizard detects
+    # that configuration is needed and prompts the user properly.
     config_file = app_data_dir / 'config.json'
     if not config_file.exists():
-        default_config = bundle_dir / 'config.example.json'
-        if default_config.exists():
-            shutil.copy(default_config, config_file)
+        default_config = {
+            'setup_completed': False,
+            'zotero': {
+                'api_key': '',
+                'user_id': '',
+                'library_type': 'user',
+                'collection_id': '',
+                'collection_name': ''
+            },
+            'openalex': {
+                'email': ''
+            },
+            'recommendation': {
+                'citation_weight': 0.3,
+                'similarity_weight': 0.7,
+                'default_days_back': 30,
+                'default_top_n': 100
+            },
+            'email': {
+                'smtp_server': 'smtp.gmail.com',
+                'smtp_port': 587,
+                'smtp_username': '',
+                'smtp_password': '',
+                'smtp_from_email': ''
+            }
+        }
+        with open(config_file, 'w') as f:
+            json.dump(default_config, f, indent=2)
 
     # Create empty .env if it doesn't exist
+    # The setup wizard will populate this via ConfigManager.update_env_file()
     env_file = app_data_dir / '.env'
     if not env_file.exists():
-        env_example = bundle_dir / '.env.example'
-        if env_example.exists():
-            shutil.copy(env_example, env_file)
-        else:
-            env_file.touch()
+        env_file.touch()
 
 
-def open_browser(port: int = 5000, delay: float = 2.0) -> None:
+def open_browser(port: int = 5050, delay: float = 2.0) -> None:
     """Open the browser after a delay to ensure server is ready.
 
     Args:
@@ -97,7 +123,7 @@ def open_browser(port: int = 5000, delay: float = 2.0) -> None:
     webbrowser.open(f'http://127.0.0.1:{port}/')
 
 
-def run_app(port: int = 5000, open_browser_flag: bool = True) -> None:
+def run_app(port: int = 5050, open_browser_flag: bool = True) -> None:
     """Run the Corall application.
 
     Args:
@@ -114,7 +140,7 @@ def run_app(port: int = 5000, open_browser_flag: bool = True) -> None:
     print()
 
     # Set up the data directory
-    setup_data_directory(app_data_dir, bundle_dir)
+    setup_data_directory(app_data_dir)
 
     # Change to data directory so relative paths work
     original_cwd = os.getcwd()
@@ -128,11 +154,10 @@ def run_app(port: int = 5000, open_browser_flag: bool = True) -> None:
     os.environ['CORALL_TEMPLATE_DIR'] = str(bundle_dir / 'templates')
     os.environ['CORALL_BUNDLE_DIR'] = str(bundle_dir)
 
-    # Load environment variables from data directory
-    from dotenv import load_dotenv
-    load_dotenv(app_data_dir / '.env')
-
     # Import and configure Flask app
+    # Note: app.py calls load_dotenv() at import time, which will load
+    # .env from the CWD (app_data_dir). We don't pre-load here to avoid
+    # double-loading. The setup wizard populates .env via ConfigManager.
     from app import app
 
     # Update Flask template and static folders if running from bundle
@@ -185,8 +210,8 @@ Examples:
     parser.add_argument(
         '--port', '-p',
         type=int,
-        default=5000,
-        help='Port to run the server on (default: 5000)'
+        default=5050,
+        help='Port to run the server on (default: 5050)'
     )
     parser.add_argument(
         '--no-browser',

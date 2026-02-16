@@ -196,5 +196,6 @@ if is_macos:
             'LSMinimumSystemVersion': '10.15.0',
             'CFBundleDocumentTypes': [],
             'LSApplicationCategoryType': 'public.app-category.productivity',
+            'LSUIElement': True,  # Run as background app (no dock icon)
         },
     )
