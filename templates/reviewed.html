@@ -201,6 +201,7 @@
     <div class="container">
         <div class="header">
             <a href="/" class="back-link">← Back to Recommendations</a>
+            <button class="back-link" style="right: 30px; left: auto; border: none; cursor: pointer;" onclick="quitApp()">✕ Quit</button>
             <h1>Reviewed Papers</h1>
             <p>Papers you've already reviewed</p>
         </div>
@@ -373,6 +374,14 @@
                     $(this).remove();
                 });
             }, 5000);
+        }
+
+        function quitApp() {
+            if (!confirm('Quit Corall? The server will shut down and the app will close.')) return;
+            fetch('/api/quit', { method: 'POST' })
+                .finally(() => {
+                    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;font-size:1.2em;color:#555;">Corall has shut down. You can close this tab.</div>';
+                });
         }
     </script>
 </body>

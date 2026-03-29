@@ -351,7 +351,10 @@
     <div class="container">
         <div class="header">
             <a href="/setup" class="header-link" style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%);">⚙️ Setup</a>
-            <a href="/reviewed" class="header-link" style="position: absolute; right: 30px; top: 50%; transform: translateY(-50%);">✓ Reviewed Papers</a>
+            <div style="position: absolute; right: 30px; top: 50%; transform: translateY(-50%); display: flex; gap: 10px;">
+                <a href="/reviewed" class="header-link">✓ Reviewed Papers</a>
+                <button class="header-link" style="border: none; cursor: pointer;" onclick="quitApp()">✕ Quit</button>
+            </div>
             <h1>🔬 Corall</h1>
             <p>Personalized Research Paper Recommendation Engine</p>
         </div>
@@ -938,6 +941,14 @@
                     showAlert('error', 'Error marking paper as reviewed: ' + error);
                 }
             });
+        }
+
+        function quitApp() {
+            if (!confirm('Quit Corall? The server will shut down and the app will close.')) return;
+            fetch('/api/quit', { method: 'POST' })
+                .finally(() => {
+                    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;font-size:1.2em;color:#555;">Corall has shut down. You can close this tab.</div>';
+                });
         }
     </script>
 </body>

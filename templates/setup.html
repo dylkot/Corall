@@ -325,7 +325,10 @@
 <body>
     <div class="container">
         <div class="header">
-            <a href="/" class="header-link" style="position: absolute; right: 30px; top: 50%; transform: translateY(-50%);">🔍 Go to Search</a>
+            <div style="position: absolute; right: 30px; top: 50%; transform: translateY(-50%); display: flex; gap: 10px;">
+                <a href="/" class="header-link">🔍 Go to Search</a>
+                <button class="header-link" style="border: none; cursor: pointer;" onclick="quitApp()">✕ Quit</button>
+            </div>
             <h1>🔬 Corall Setup</h1>
             <p>Let's get your personalized research assistant configured</p>
         </div>
@@ -876,6 +879,14 @@
                     $(this).remove();
                 });
             }, 5000);
+        }
+
+        function quitApp() {
+            if (!confirm('Quit Corall? The server will shut down and the app will close.')) return;
+            fetch('/api/quit', { method: 'POST' })
+                .finally(() => {
+                    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;font-size:1.2em;color:#555;">Corall has shut down. You can close this tab.</div>';
+                });
         }
     </script>
 </body>

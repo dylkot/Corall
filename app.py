@@ -3,6 +3,7 @@ Flask web server for Corall paper recommendation system.
 """
 import os
 import json
+import signal
 import webbrowser
 import threading
 import time
@@ -563,6 +564,16 @@ def check_email_configured():
     return jsonify({
         'configured': email_sender.is_configured()
     })
+
+
+@app.route('/api/quit', methods=['POST'])
+def quit_app():
+    """Shut down the application."""
+    def shutdown():
+        time.sleep(0.5)
+        os.kill(os.getpid(), signal.SIGTERM)
+    threading.Thread(target=shutdown, daemon=True).start()
+    return jsonify({'success': True, 'message': 'Shutting down...'})
 
 
 def open_browser():
