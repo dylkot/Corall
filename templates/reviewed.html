@@ -298,6 +298,7 @@
             }
 
             const paperId = paper.paper_id || paper.doi || '';
+            const reactionIcon = paper.reaction === 'up' ? '👍' : paper.reaction === 'down' ? '👎' : '✓';
 
             return `
                 <div class="paper-card" id="reviewed-paper-${index}">
@@ -309,7 +310,7 @@
                         <strong>Authors:</strong> ${authors}<br>
                         <strong>Published:</strong> ${date}<br>
                         <strong>Journal:</strong> ${journal}<br>
-                        <span class="reviewed-date">✓ Reviewed on ${reviewedDate}</span>
+                        <span class="reviewed-date">${reactionIcon} Reviewed on ${reviewedDate}</span>
                     </div>
 
                     <div style="margin-top: 15px; text-align: right;">
@@ -325,7 +326,7 @@
             $('#papers-container').html(`
                 <div class="empty-state">
                     <h2>No Reviewed Papers Yet</h2>
-                    <p>Papers you mark as reviewed will appear here.</p>
+                    <p>Papers you react to with 👍 or 👎 will appear here.</p>
                     <br>
                     <a href="/" class="btn btn-primary">Go to Recommendations</a>
                 </div>

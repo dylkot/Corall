@@ -38,19 +38,21 @@ class ReviewedPapersManager:
         with open(self.storage_file, 'w') as f:
             json.dump(reviewed_papers, f, indent=2)
 
-    def mark_as_reviewed(self, paper_id: str, paper_data: Optional[Dict] = None):
+    def mark_as_reviewed(self, paper_id: str, paper_data: Optional[Dict] = None, reaction: Optional[str] = None):
         """
         Mark a paper as reviewed.
 
         Args:
             paper_id: Unique identifier for the paper (DOI or OpenAlex ID)
             paper_data: Optional paper metadata (title, authors, etc.)
+            reaction: Optional user reaction - 'up' (liked) or 'down' (disliked)
         """
         reviewed_papers = self._load_reviewed_papers()
 
-        # Store paper with review timestamp
+        # Store paper with review timestamp and reaction
         reviewed_papers[paper_id] = {
             'reviewed_date': datetime.now().isoformat(),
+            'reaction': reaction,
             'paper_data': paper_data or {}
         }
 
@@ -83,6 +85,7 @@ class ReviewedPapersManager:
             paper_info = data.get('paper_data', {})
             paper_info['paper_id'] = paper_id
             paper_info['reviewed_date'] = data.get('reviewed_date')
+            paper_info['reaction'] = data.get('reaction')
             result.append(paper_info)
 
         # Sort by review date (most recent first)

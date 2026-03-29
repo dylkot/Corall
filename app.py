@@ -413,6 +413,7 @@ def mark_paper_reviewed():
         data = request.json or {}
         paper_id = data.get('paper_id')
         paper_data = data.get('paper_data', {})
+        reaction = data.get('reaction')
 
         if not paper_id:
             return jsonify({
@@ -420,7 +421,7 @@ def mark_paper_reviewed():
                 'error': 'Paper ID is required'
             }), 400
 
-        reviewed_manager.mark_as_reviewed(paper_id, paper_data)
+        reviewed_manager.mark_as_reviewed(paper_id, paper_data, reaction)
 
         return jsonify({
             'success': True,
